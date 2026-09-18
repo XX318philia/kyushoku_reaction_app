@@ -583,7 +583,6 @@ MVPでは「当日の給食に対する簡単なフィードバック」に対�
   * ERB
   * Hotwire（Turbo）
   * Bootstrap
-  * Sorcery
   * Git / GitHub
   * Docker
 
@@ -605,15 +604,9 @@ CSSフレームワークにはBootstrapを使用する。このアプリでは�
 
 #### 認証
 
-認証にはSorceryを使用する。
+認証には `has_secure_password` + `bcrypt` を使用する。
+MVPで必要なのは login_id + password のログイン・ログアウトだけです。
 
-カリキュラムで利用経験があり、MVPで必要となる
-
-* ログイン
-* ログアウト
-* 幼稚園側と給食センター側のログインユーザー管理
-
-を、既に学習した知識を活かして実装できるため。
 MVPではメール認証・パスワード再設定などは実装せず、本リリース後の候補とする。
 
 ---
@@ -728,7 +721,6 @@ HotwireのTurboを利用すれば、すべてを独自JavaScriptでAjax化しな
 
 * Railsで複数モデルを関連付けた設計を自分で一から考える経験が少ない
 * 集計処理の責務をModel・Controller・Serviceなどのどこに置くか迷う可能性がある
-* SorceryとRails 7.2系の組み合わせで問題が発生する可能性がある
 * Render・Neonを組み合わせた本番環境構築で、環境変数やDB接続設定につまずく可能性がある
 * Hotwireを必要以上に使おうとすると、MVPの実装範囲が広がる可能性がある
 * 新しい技術・機能を追加したくなり、9月30日のMVPリリースという優先順位が崩れる可能性がある
@@ -803,3 +795,7 @@ MVPではまず、
 ## 画面遷移図URL
 
 https://www.figma.com/design/MGXlJJF1Otp0tDoJFHVXTq/kyushoku_reaction_app?node-id=17-68
+
+## ER図
+
+![ER図](./er_diagram_docs/er_diagram.png)

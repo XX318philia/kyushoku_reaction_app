@@ -1,0 +1,69 @@
+@startuml
+
+hide circle
+skinparam linetype ortho
+
+entity "users" as users {
+  * id : bigint
+  --
+  login_id : string <<NOT NULL>> <<UNIQUE>>
+  password_digest : string <<NOT NULL>>
+  role : string <<NOT NULL>>
+  kindergarten_id : bigint <<FK>>
+  --
+  UNIQUE(kindergarten_id)
+}
+
+entity "kindergartens" as kindergartens {
+  * id : bigint
+  --
+  name : string <<NOT NULL>>
+}
+
+kindergartens |o--|| users
+
+entity "classrooms" as classrooms {
+  * id : bigint
+  --
+  kindergarten_id : bigint <<FK>> <<NOT NULL>>
+  name : string <<NOT NULL>>
+  --
+  UNIQUE (kindergarten_id, name)
+}
+
+kindergartens ||--o{ classrooms
+
+entity "dishes" as dishes {
+  * id : bigint
+  --
+name : string <<NOT NULL>>
+category : string <<NOT NULL>>
+}
+
+entity "feedback_targets" as feedback_targets {
+  * id : bigint
+  --
+  dish_id : bigint <<FK>> <<NOT NULL>>
+  target_date : date <<NOT NULL>>
+  --
+  UNIQUE(target_date)
+}
+
+dishes ||--o{ feedback_targets
+
+entity "reactions" as reactions {
+  * id : bigint
+  --
+  classroom_id : bigint <<FK>> <<NOT NULL>>
+  feedback_target_id : bigint <<FK>> <<NOT NULL>>
+  positive_count : integer <<NOT NULL>>
+  neutral_count : integer <<NOT NULL>>
+  negative_count : integer <<NOT NULL>>
+  --
+  UNIQUE(classroom_id, feedback_target_id)
+}
+
+classrooms ||--o{ reactions
+feedback_targets ||--o{ reactions
+
+@enduml
