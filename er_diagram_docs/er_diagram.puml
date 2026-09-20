@@ -37,7 +37,7 @@ entity "dishes" as dishes {
   * id : bigint
   --
 name : string <<NOT NULL>>
-category : string <<NOT NULL>>
+category : integer <<NOT NULL>>
 }
 
 entity "feedback_targets" as feedback_targets {
