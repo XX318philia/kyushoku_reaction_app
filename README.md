@@ -800,3 +800,5 @@ https://www.figma.com/design/MGXlJJF1Otp0tDoJFHVXTq/kyushoku_reaction_app?node-i
 ## ER図
 
 ![ER図](./er_diagram_docs/er_diagram.png)
+
+ER図の設計意図やテーブル詳細については、[ER図仕様書](./er_diagram_docs/er_diagram_specification.md)を参照してください。
