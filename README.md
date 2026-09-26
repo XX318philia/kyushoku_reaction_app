@@ -586,7 +586,7 @@ MVPでは「当日の給食に対する簡単なフィードバック」に対�
 * フレームワーク：
 
   * Ruby 3.4.8
-  * Ruby on Rails 7.2.3.1
+  * Ruby on Rails 7.2.3.2
 * DB：
 
   * PostgreSQL
