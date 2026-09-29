@@ -67,10 +67,19 @@ roleで利用可能な機能も制御する。
 * `login_id` : string / ログイン時に使用する識別子 / NOT NULL / UNIQUE
 * `password_digest` : string / `has_secure_password` で使用するハッシュ化済みパスワード / NOT NULL
 * `role` : string / 幼稚園側アカウント・給食センター側アカウントの判別 / NOT NULL
-* `kindergarten_id` : bigint / 幼稚園側アカウントが所属する幼稚園 / 外部キー
+* `kindergarten_id` : bigint / 幼稚園側アカウントが所属する幼稚園 / 外部キー / NULL許容
 * UNIQUE (`kindergarten_id`)
+  * １幼稚園につき１アカウントとするため
 
-※ 給食センター側アカウントは幼稚園に所属しないため、`kindergarten_id` は NULL を許可します。
+* 給食センター側アカウントは幼稚園に所属しないため、`kindergarten_id` は NULL を許可します。
+* Railsモデルでは、`string-backed enum` として管理する。
+  * `kindergarten` → `"kindergarten"`
+  * `center`       → `"center"`
+* `role` と `kindergarten_id` の整合条件は以下とする。この整合条件はRailsモデルのバリデーションで保証する。
+  * `role = kindergarten`
+    * `kindergarten_id` を必須とする。
+  * `role = center`
+    * `kindergarten_id` は `NULL` とする。
 
 ---
 
