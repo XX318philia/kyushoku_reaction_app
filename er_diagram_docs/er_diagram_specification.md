@@ -67,10 +67,19 @@ roleで利用可能な機能も制御する。
 * `login_id` : string / ログイン時に使用する識別子 / NOT NULL / UNIQUE
 * `password_digest` : string / `has_secure_password` で使用するハッシュ化済みパスワード / NOT NULL
 * `role` : string / 幼稚園側アカウント・給食センター側アカウントの判別 / NOT NULL
-* `kindergarten_id` : bigint / 幼稚園側アカウントが所属する幼稚園 / 外部キー
+* `kindergarten_id` : bigint / 幼稚園側アカウントが所属する幼稚園 / 外部キー / NULL許容
 * UNIQUE (`kindergarten_id`)
+  * １幼稚園につき１アカウントとするため
 
-※ 給食センター側アカウントは幼稚園に所属しないため、`kindergarten_id` は NULL を許可します。
+* 給食センター側アカウントは幼稚園に所属しないため、`kindergarten_id` は NULL を許可します。
+* Railsモデルでは、`string-backed enum` として管理する。
+  * `kindergarten` → `"kindergarten"`
+  * `center`       → `"center"`
+* `role` と `kindergarten_id` の整合条件は以下とする。この整合条件はRailsモデルのバリデーションで保証する。
+  * `role = kindergarten`
+    * `kindergarten_id` を必須とする。
+  * `role = center`
+    * `kindergarten_id` は `NULL` とする。
 
 ---
 
@@ -103,17 +112,18 @@ roleで利用可能な機能も制御する。
 * `id` : bigint / 主キー
 * `name` : string / 料理名 / NOT NULL
 * `category` : integer / 料理分類 / NOT NULL
+* UNIQUE( `name`, `category`)
 
-料理分類は事前に定めた固定値として扱い、`dishes.category` を Rails の`enum` で管理します。
-
-料理分類は以下の4種類とします。
-
-* 主菜
-* 副菜
-* 汁物
-* フルーツ・デザート
-
-料理分類自体の追加・編集・削除機能は持たないため、独立したテーブルにはせず、`dishes` の属性として管理します。
+* 料理名には、ひらがな・カタカナ・漢字・長音記号「ー」を使用できる。
+* 料理名に含まれる半角・全角スペースは、前後・途中を問わず除去してから保存する。
+* ひらがな・カタカナ・漢字間の表記変換は行わない。
+* 料理分類は事前に定めた固定値として扱い、`dishes.category` を Rails の`enum` で管理します。
+* 料理分類は以下の4種類とします。
+  * 主菜
+  * 副菜
+  * 汁物
+  * フルーツ・デザート
+* 料理分類自体の追加・編集・削除機能は持たないため、独立したテーブルにはせず、`dishes` の属性として管理します。
 
 ---
 
