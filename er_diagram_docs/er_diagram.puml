@@ -36,8 +36,10 @@ kindergartens ||--o{ classrooms
 entity "dishes" as dishes {
   * id : bigint
   --
-name : string <<NOT NULL>>
-category : integer <<NOT NULL>>
+  name : string <<NOT NULL>>
+  category : integer <<NOT NULL>>
+  --
+  UNIQUE (name, category)
 }
 
 entity "feedback_targets" as feedback_targets {
