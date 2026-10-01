@@ -10,13 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_01_144109) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_01_162706) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "classrooms", force: :cascade do |t|
+    t.bigint "kindergarten_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index [ "kindergarten_id", "name" ], name: "index_classrooms_on_kindergarten_id_and_name", unique: true
+    t.index [ "kindergarten_id" ], name: "index_classrooms_on_kindergarten_id"
+  end
 
   create_table "kindergartens", force: :cascade do |t|
     t.string "name", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
+
+  add_foreign_key "classrooms", "kindergartens"
 end

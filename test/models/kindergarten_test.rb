@@ -1,6 +1,16 @@
 require "test_helper"
 
 class KindergartenTest < ActiveSupport::TestCase
+  test "returns only classrooms belonging to the kindergarten" do
+    kindergarten = Kindergarten.create!(name: "さくら幼稚園")
+    other_kindergarten = Kindergarten.create!(name: "すみれ幼稚園")
+    sunflower_classroom = Classroom.create!(kindergarten: kindergarten, name: "ひまわり組")
+    tulip_classroom = Classroom.create!(kindergarten: kindergarten, name: "ちゅーりっぷ組")
+    Classroom.create!(kindergarten: other_kindergarten, name: "ひまわり組")
+
+    assert_equal [ sunflower_classroom, tulip_classroom ], kindergarten.reload.classrooms.order(:id).to_a
+  end
+
   test "saves a kindergarten with a name and timestamps" do
     kindergarten = Kindergarten.new(name: "さくら幼稚園")
 
