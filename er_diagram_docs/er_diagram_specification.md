@@ -57,6 +57,15 @@ roleで利用可能な機能も制御する。
 
 ## テーブル詳細
 
+### 共通カラム
+
+すべてのテーブルに、Rails標準の `timestamps` による以下の日時カラムを設けます。
+
+* `created_at` : datetime / 作成日時 / NOT NULL
+* `updated_at` : datetime / 更新日時 / NOT NULL
+
+`created_at` / `updated_at` は全テーブル共通のため、ER図および以下の各テーブルのカラム一覧では省略します。
+
 ### テーブル構成
 
 #### users
