@@ -1,9 +1,15 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
-#
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+# 開発環境・MVP公開デモ環境で使用する架空の初期データ。
+ActiveRecord::Base.transaction do
+  center_user = User.find_or_initialize_by(login_id: "center_demo")
+  center_user.update!(role: :center, password: "demo-c-2026", kindergarten: nil)
+
+  kindergarten_user = User.find_or_initialize_by(login_id: "kindergarten_demo")
+  # 同名の既存幼稚園を再利用せず、seed対象Userとの関連で識別する。
+  kindergarten = kindergarten_user.kindergarten || Kindergarten.new
+  kindergarten.update!(name: "サンプル幼稚園")
+  kindergarten_user.update!(role: :kindergarten, password: "demo-k-2026", kindergarten: kindergarten)
+
+  [ "さくら", "うめ", "チューリップ" ].each do |name|
+    kindergarten.classrooms.find_or_create_by!(name: name)
+  end
+end
