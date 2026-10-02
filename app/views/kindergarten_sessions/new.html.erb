@@ -1,0 +1,30 @@
+<% content_for :title, "幼稚園ログイン | 給食リアクション" %>
+
+<main class="container py-4">
+  <h1 class="mb-5 text-center">給食リアクション</h1>
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-8 col-md-6 col-lg-4">
+      <h2 class="h5 mb-3">ログイン</h2>
+      <p class="small mb-3">こちらは幼稚園様用のログインページです。</p>
+
+      <% if flash[:alert].present? %>
+        <div class="alert alert-danger" role="alert"><%= flash[:alert] %></div>
+      <% end %>
+
+      <%= form_with url: kindergarten_login_path do |form| %>
+        <div class="mb-3">
+          <%= form.label :login_id, "ログインID", class: "visually-hidden" %>
+          <%= form.text_field :login_id, value: params[:login_id], placeholder: "ログインID", autocomplete: "username", class: "form-control py-2" %>
+        </div>
+
+        <div class="mb-3">
+          <%= form.label :password, "パスワード", class: "visually-hidden" %>
+          <%= form.password_field :password, placeholder: "パスワード", autocomplete: "current-password", class: "form-control py-2" %>
+        </div>
+
+        <%= form.submit "ログイン", class: "btn btn-secondary w-100 py-2" %>
+      <% end %>
+    </div>
+  </div>
+</main>

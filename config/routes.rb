@@ -11,4 +11,7 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   root "home#index"
+
+  get "kindergarten/login", to: "kindergarten_sessions#new", as: :kindergarten_login
+  post "kindergarten/login", to: "kindergarten_sessions#create"
 end
