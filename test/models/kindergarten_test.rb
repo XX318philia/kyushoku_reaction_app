@@ -1,6 +1,23 @@
 require "test_helper"
 
 class KindergartenTest < ActiveSupport::TestCase
+  test "saves a kindergarten without a user" do
+    kindergarten = Kindergarten.new(name: "さくら幼稚園")
+
+    assert kindergarten.save
+    assert_nil kindergarten.reload.user
+  end
+
+  test "returns only the user belonging to the kindergarten" do
+    kindergarten = Kindergarten.create!(name: "さくら幼稚園")
+    other_kindergarten = Kindergarten.create!(name: "すみれ幼稚園")
+    user = User.create!(login_id: "sakura", password: "password", role: :kindergarten, kindergarten: kindergarten)
+    User.create!(login_id: "sumire", password: "password", role: :kindergarten, kindergarten: other_kindergarten)
+    User.create!(login_id: "center", password: "password", role: :center)
+
+    assert_equal user, kindergarten.reload.user
+  end
+
   test "returns only classrooms belonging to the kindergarten" do
     kindergarten = Kindergarten.create!(name: "さくら幼稚園")
     other_kindergarten = Kindergarten.create!(name: "すみれ幼稚園")

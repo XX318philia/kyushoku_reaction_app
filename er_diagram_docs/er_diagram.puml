@@ -20,7 +20,7 @@ entity "kindergartens" as kindergartens {
   name : string <<NOT NULL>>
 }
 
-kindergartens |o--|| users
+kindergartens |o--o| users
 
 entity "classrooms" as classrooms {
   * id : bigint
