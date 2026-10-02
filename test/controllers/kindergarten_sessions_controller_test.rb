@@ -13,7 +13,7 @@ class KindergartenSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", text: "給食リアクション"
     assert_select "h2", text: "ログイン"
-    assert_select "p", text: "幼稚園用アカウント"
+    assert_select "p", text: "こちらは幼稚園様用のログインページです。"
     assert_select "form[action=?][method=post]", kindergarten_login_path do
       assert_select "label[for=login_id]", text: "ログインID"
       assert_select "input[type=text][name=login_id][autocomplete=username]"

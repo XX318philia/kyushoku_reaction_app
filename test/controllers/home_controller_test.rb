@@ -20,7 +20,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h2", text: "ログイン"
-    assert_select "p", text: "幼稚園用アカウント"
+    assert_select "p", text: "こちらは幼稚園様用のログインページです。"
   end
 
   test "center login destination is displayed without a link" do
