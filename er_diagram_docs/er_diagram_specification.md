@@ -78,7 +78,13 @@ roleで利用可能な機能も制御する。
 * `role` : string / 幼稚園側アカウント・給食センター側アカウントの判別 / NOT NULL
 * `kindergarten_id` : bigint / 幼稚園側アカウントが所属する幼稚園 / 外部キー / NULL許容
 * UNIQUE (`kindergarten_id`)
-  * １幼稚園につき１アカウントとするため
+  * 同一幼稚園への複数Userの所属を禁止するため
+
+* 1 Userは0または1 Kindergartenに所属し、1 Kindergartenは0または1 Userを持つ。
+* KindergartenはUser未登録の状態でも保存できる。
+* MVP運用時はIssue #16のseedで各Kindergartenに1 Userを登録する。
+* `center` UserはDBでは件数を最大1件に制限せず、`kindergarten_id = NULL` のUserを複数保存できる。
+  * MVP運用時はIssue #16のseedで1件登録する。
 
 * 給食センター側アカウントは幼稚園に所属しないため、`kindergarten_id` は NULL を許可します。
 * Railsモデルでは、`string-backed enum` として管理する。

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_01_162706) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -29,5 +29,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_01_162706) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "users", force: :cascade do |t|
+    t.string "login_id", null: false
+    t.string "password_digest", null: false
+    t.string "role", null: false
+    t.bigint "kindergarten_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index [ "kindergarten_id" ], name: "index_users_on_kindergarten_id", unique: true
+    t.index [ "login_id" ], name: "index_users_on_login_id", unique: true
+  end
+
   add_foreign_key "classrooms", "kindergartens"
+  add_foreign_key "users", "kindergartens"
 end
