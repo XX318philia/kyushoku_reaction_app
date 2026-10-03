@@ -5,7 +5,8 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     get root_url
 
     assert_response :success
-    assert_select "h1", text: "給食リアクション"
+    assert_select "header h1", text: "給食リアクション", count: 1
+    assert_select "main h1", count: 0
     assert_select "p", text: "ログイン先を選択してください"
     assert_select "p", text: "幼稚園様はこちら"
     assert_select "p", text: "給食センター様はこちら"

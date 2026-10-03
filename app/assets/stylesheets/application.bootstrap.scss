@@ -1,2 +1,66 @@
 @import 'bootstrap/scss/bootstrap';
 @import 'bootstrap-icons/font/bootstrap-icons';
+
+.shared-header,
+.shared-footer {
+  background-color: #ededed;
+  color: #1f1f1f;
+}
+
+.shared-header {
+  border-bottom: 1px solid #d1d1d1;
+}
+
+.shared-header--before-login {
+  min-height: 97px;
+
+  h1 {
+    font-size: 2rem;
+    font-weight: normal;
+  }
+}
+
+.shared-header--after-login {
+  min-height: 62px;
+  font-size: .875rem;
+
+  nav {
+    min-height: inherit;
+  }
+
+  .nav-link {
+    color: inherit;
+  }
+}
+
+.shared-header-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.shared-kindergarten-menu-button {
+  width: 44px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 0;
+}
+
+.shared-footer {
+  min-height: 72px;
+  border-top: 1px solid #d1d1d1;
+}
+
+@include media-breakpoint-up(md) {
+  .shared-header--before-login {
+    min-height: 111px;
+
+    h1 {
+      font-size: 2.25rem;
+    }
+  }
+
+  .shared-header--after-login {
+    min-height: 70px;
+  }
+}
