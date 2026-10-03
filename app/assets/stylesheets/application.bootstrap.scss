@@ -3,11 +3,11 @@
 
 .shared-header,
 .shared-footer {
-  background-color: #ededed;
   color: #1f1f1f;
 }
 
 .shared-header {
+  background-color: #ededed;
   border-bottom: 1px solid #d1d1d1;
 }
 
@@ -47,6 +47,7 @@
 }
 
 .shared-footer {
+  background-color: #f5f5f5;
   min-height: 72px;
   border-top: 1px solid #d1d1d1;
 }
