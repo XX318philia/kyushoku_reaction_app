@@ -13,4 +13,9 @@ class CenterSessionsController < ApplicationController
       render :new, status: :unprocessable_content
     end
   end
+
+  def destroy
+    log_out
+    redirect_to center_login_path, status: :see_other
+  end
 end

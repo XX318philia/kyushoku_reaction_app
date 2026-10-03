@@ -14,7 +14,9 @@ Rails.application.routes.draw do
 
   get "kindergarten/login", to: "kindergarten_sessions#new", as: :kindergarten_login
   post "kindergarten/login", to: "kindergarten_sessions#create"
+  delete "kindergarten/logout", to: "kindergarten_sessions#destroy", as: :kindergarten_logout
 
   get "center/login", to: "center_sessions#new", as: :center_login
   post "center/login", to: "center_sessions#create"
+  delete "center/logout", to: "center_sessions#destroy", as: :center_logout
 end

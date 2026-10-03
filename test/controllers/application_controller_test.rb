@@ -70,6 +70,21 @@ class ApplicationControllerTest < ActionController::TestCase
     assert_equal true, @controller.send(:logged_in?)
   end
 
+  test "logs out after an earlier current user lookup in the same request" do
+    session[:user_id] = @center_user.id
+    session[:previous_value] = "old-session-data"
+    assert_equal @center_user, @controller.send(:current_user)
+
+    @controller.send(:log_out)
+
+    assert_nil session[:user_id]
+    assert_nil session[:previous_value]
+    assert_nil @controller.send(:current_user)
+    assert_equal false, @controller.send(:logged_in?)
+    assert_equal false, @controller.send(:kindergarten_user?)
+    assert_equal false, @controller.send(:center_user?)
+  end
+
   test "is logged out without a session user id" do
     assert_nil @controller.send(:current_user)
     assert_equal false, @controller.send(:logged_in?)

@@ -43,6 +43,37 @@ class CenterSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_login_failure(login_id: "unknown", password: "center-password")
   end
 
+  test "logs out a center user and redirects to the center login" do
+    post center_login_url, params: { login_id: @center_user.login_id, password: "center-password" }
+    assert_equal @center_user.id, request.session[:user_id]
+
+    delete center_logout_url
+
+    assert_response :see_other
+    assert_redirected_to center_login_url
+    assert_nil request.session[:user_id]
+
+    follow_redirect!
+
+    assert_response :success
+    assert_nil request.session[:user_id]
+    assert_select "form[action=?]", center_login_path
+    assert_select "header nav", count: 0
+  end
+
+  test "redirects a logged out user to the center login after logout" do
+    delete center_logout_url
+
+    assert_response :see_other
+    assert_redirected_to center_login_url
+    assert_nil request.session[:user_id]
+
+    follow_redirect!
+
+    assert_response :success
+    assert_select "form[action=?]", center_login_path
+  end
+
   test "does not log in with an incorrect password" do
     assert_login_failure(login_id: @center_user.login_id, password: "wrong-password")
   end
@@ -122,6 +153,24 @@ end
 
 class CenterSessionsSessionTest < ActionController::TestCase
   tests CenterSessionsController
+
+  test "logout resets the whole session and current user state" do
+    user = User.create!(login_id: "Center", password: "center-password", role: :center)
+    session[:user_id] = user.id
+    session[:previous_value] = "old-session-data"
+    assert_equal user, @controller.send(:current_user)
+
+    delete :destroy
+
+    assert_response :see_other
+    assert_redirected_to center_login_url
+    assert_nil session[:user_id]
+    assert_nil session[:previous_value]
+    assert_nil @controller.send(:current_user)
+    assert_equal false, @controller.send(:logged_in?)
+    assert_equal false, @controller.send(:kindergarten_user?)
+    assert_equal false, @controller.send(:center_user?)
+  end
 
   test "successful login uses the shared session reset and current user management" do
     user = User.create!(login_id: "Center", password: "center-password", role: :center)
