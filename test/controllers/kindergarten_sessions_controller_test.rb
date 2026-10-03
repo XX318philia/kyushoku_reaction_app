@@ -11,7 +11,8 @@ class KindergartenSessionsControllerTest < ActionDispatch::IntegrationTest
     get kindergarten_login_url
 
     assert_response :success
-    assert_select "h1", text: "給食リアクション"
+    assert_select "header h1", text: "給食リアクション", count: 1
+    assert_select "main h1", count: 0
     assert_select "h2", text: "ログイン"
     assert_select "p", text: "こちらは幼稚園様用のログインページです。"
     assert_select "form[action=?][method=post]", kindergarten_login_path do
