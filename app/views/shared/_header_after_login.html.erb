@@ -1,18 +1,18 @@
 <header class="shared-header shared-header--after-login">
-  <%# 未実装画面とログアウトの仮リンクは、各機能の実装時に正式なパスへ変更する。 %>
+  <%# 未実装画面の仮リンクは、各機能の実装時に正式なパスへ変更する。 %>
   <% if kindergarten_user? %>
     <nav class="container-fluid d-flex align-items-center gap-2 gap-md-4 py-2" aria-label="幼稚園用ナビゲーション">
       <span class="shared-header-name flex-grow-1 flex-md-grow-0"><%= current_user.kindergarten.name %></span>
       <%= link_to "入力・編集", "#", class: "nav-link text-nowrap py-2" %>
       <%= link_to "集計結果", "#", class: "nav-link text-nowrap py-2" %>
-      <%= link_to "ログアウト", "#", class: "nav-link text-nowrap py-2 d-none d-md-block" %>
+      <%= link_to "ログアウト", kindergarten_logout_path, class: "nav-link text-nowrap py-2 d-none d-md-block", data: { turbo_method: :delete } %>
 
       <div class="dropdown d-md-none">
         <button class="btn shared-kindergarten-menu-button d-flex align-items-center justify-content-center" type="button" id="kindergarten-menu" data-bs-toggle="dropdown" aria-expanded="false" aria-controls="kindergarten-menu-items" aria-label="メニューを開く">
           <%= image_tag "menu.svg", alt: "", width: 20, height: 14 %>
         </button>
         <ul class="dropdown-menu dropdown-menu-end" id="kindergarten-menu-items" aria-labelledby="kindergarten-menu">
-          <li><%= link_to "ログアウト", "#", class: "dropdown-item" %></li>
+          <li><%= link_to "ログアウト", kindergarten_logout_path, class: "dropdown-item", data: { turbo_method: :delete } %></li>
         </ul>
       </div>
     </nav>
@@ -22,7 +22,7 @@
       <%= link_to "当日集計結果", "#", class: "nav-link text-nowrap py-2" %>
       <%= link_to "対象料理設定", "#", class: "nav-link text-nowrap py-2" %>
       <%= link_to "料理マスタ登録", "#", class: "nav-link text-nowrap py-2" %>
-      <%= link_to "ログアウト", "#", class: "nav-link text-nowrap py-2" %>
+      <%= link_to "ログアウト", center_logout_path, class: "nav-link text-nowrap py-2", data: { turbo_method: :delete } %>
     </nav>
   <% end %>
 </header>

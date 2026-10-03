@@ -29,7 +29,9 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
         assert_select "a[href='#']", text: "入力・編集", count: 1
         assert_select "a[href='#']", text: "集計結果", count: 1
         assert_select "button[aria-controls=kindergarten-menu-items][aria-expanded=false]"
-        assert_select "#kindergarten-menu-items a[href='#']", text: "ログアウト", count: 1
+        assert_select "a[href=?][data-turbo-method=delete].d-none.d-md-block", kindergarten_logout_path, text: "ログアウト", count: 1
+        assert_select "#kindergarten-menu-items a[href=?][data-turbo-method=delete]", kindergarten_logout_path, text: "ログアウト", count: 1
+        assert_select "a[href=?]", center_logout_path, count: 0
       end
       assert_select "header nav[aria-label=?]", "給食センター用ナビゲーション", count: 0
       assert_select "header h1", count: 0
@@ -48,9 +50,11 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "header nav[aria-label=?]", "給食センター用ナビゲーション" do
         assert_select "span", text: "Philia給食センター"
-        [ "当日集計結果", "対象料理設定", "料理マスタ登録", "ログアウト" ].each do |label|
+        [ "当日集計結果", "対象料理設定", "料理マスタ登録" ].each do |label|
           assert_select "a[href='#']", text: label, count: 1
         end
+        assert_select "a[href=?][data-turbo-method=delete]", center_logout_path, text: "ログアウト", count: 1
+        assert_select "a[href=?]", kindergarten_logout_path, count: 0
       end
       assert_select "header nav[aria-label=?]", "幼稚園用ナビゲーション", count: 0
       assert_select "header h1", count: 0
@@ -67,6 +71,36 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       assert_select "header h1", text: "給食リアクション", count: 1
       assert_select "[role=alert]", text: "ログインIDまたはパスワードが正しくありません"
       assert_shared_footer
+    end
+  end
+
+  test "logout restores the shared logged out header and footer for both roles" do
+    kindergarten_user = User.create!(login_id: "Himawari", password: "layout-password", role: :kindergarten,
+      kindergarten: Kindergarten.create!(name: "ひまわり幼稚園"))
+    center_user = User.create!(login_id: "Center", password: "layout-password", role: :center)
+
+    [ [ kindergarten_user, kindergarten_login_path, kindergarten_logout_path ],
+      [ center_user, center_login_path, center_logout_path ] ].each do |user, login_path, logout_path|
+      post login_path, params: { login_id: user.login_id, password: "layout-password" }
+      get root_path
+      assert_select "header nav", count: 1
+
+      delete logout_path
+
+      assert_response :see_other
+      assert_redirected_to login_path
+      follow_redirect!
+
+      shared_pages.each do |path|
+        get path
+
+        assert_response :success
+        assert_select "header", count: 1
+        assert_select "header h1", text: "給食リアクション", count: 1
+        assert_select "header nav", count: 0
+        assert_select "header a[data-turbo-method=delete]", count: 0
+        assert_shared_footer
+      end
     end
   end
 
