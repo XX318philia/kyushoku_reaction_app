@@ -23,11 +23,15 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: "こちらは幼稚園様用のログインページです。"
   end
 
-  test "center login destination is displayed without a link" do
+  test "center login link opens the center login page" do
     get root_url
 
-    assert_select "p", text: "給食センター様はこちら" do
-      assert_select "a", count: 0
-    end
+    assert_select "a[href=?]", center_login_path, text: "給食センター様はこちら"
+
+    get center_login_path
+
+    assert_response :success
+    assert_select "h2", text: "ログイン"
+    assert_select "p", text: "こちらは給食センター様用のログインページです。"
   end
 end
