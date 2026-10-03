@@ -14,4 +14,7 @@ Rails.application.routes.draw do
 
   get "kindergarten/login", to: "kindergarten_sessions#new", as: :kindergarten_login
   post "kindergarten/login", to: "kindergarten_sessions#create"
+
+  get "center/login", to: "center_sessions#new", as: :center_login
+  post "center/login", to: "center_sessions#create"
 end
