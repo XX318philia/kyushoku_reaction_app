@@ -125,6 +125,33 @@ class DishTest < ActiveSupport::TestCase
     end
   end
 
+  test "accepts half-width katakana extended kana and kanji letters" do
+    [ "ｶﾚー", "ㇰ", "髙菜炒め", "𠮷野汁" ].each do |name|
+      dish = Dish.new(name: name, category: :main_dish)
+
+      assert dish.save, "Expected #{name.inspect} to be accepted"
+      assert_equal name, dish.reload.name
+    end
+  end
+
+  test "rejects hiragana katakana and kanji iteration marks" do
+    [ "ゝ", "ゞ", "ヽ", "ヾ", "々", "〻" ].each do |mark|
+      @dish.name = "野菜#{mark}スープ"
+
+      assert_not @dish.save, "Expected #{mark.inspect} to be rejected"
+      assert @dish.errors.of_kind?(:name, :invalid)
+    end
+  end
+
+  test "rejects Han radicals and numerals" do
+    [ "⼀", "⺀", "〇", "〡" ].each do |character|
+      @dish.name = "野菜#{character}スープ"
+
+      assert_not @dish.save, "Expected #{character.inspect} to be rejected"
+      assert @dish.errors.of_kind?(:name, :invalid)
+    end
+  end
+
   test "rejects letters digits parentheses and other symbols" do
     [ "カレーA", "カレーａ", "カレー1", "カレー１", "カレー(辛口)", "カレー（辛口）",
       "カレー-ライス", "カレー／ライス", "カレー、ライス", "カレー🙂" ].each do |name|
