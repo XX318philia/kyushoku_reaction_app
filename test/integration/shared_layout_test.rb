@@ -40,7 +40,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "center header displays the fixed center name and placeholder navigation on every page" do
+  test "center header displays the fixed center name and dish registration link on every page" do
     user = User.create!(login_id: "Center", password: "center-password", role: :center)
     post center_login_path, params: { login_id: user.login_id, password: "center-password" }
 
@@ -50,9 +50,10 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "header nav[aria-label=?]", "給食センター用ナビゲーション" do
         assert_select "span", text: "Philia給食センター"
-        [ "当日集計結果", "対象料理設定", "料理マスタ登録" ].each do |label|
+        [ "当日集計結果", "対象料理設定" ].each do |label|
           assert_select "a[href='#']", text: label, count: 1
         end
+        assert_select "a[href=?]", new_dish_path, text: "料理マスタ登録", count: 1
         assert_select "a[href=?][data-turbo-method=delete]", center_logout_path, text: "ログアウト", count: 1
         assert_select "a[href=?]", kindergarten_logout_path, count: 0
       end
@@ -61,6 +62,24 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       assert_select "header a.active", count: 0
       assert_shared_footer
     end
+  end
+
+  test "center dish registration link opens the form with the shared header and footer" do
+    user = User.create!(login_id: "Center", password: "center-password", role: :center)
+    post center_login_path, params: { login_id: user.login_id, password: "center-password" }
+    get root_path
+
+    assert_select "header a[href=?].nav-link", new_dish_path, text: "料理マスタ登録", count: 1
+
+    get new_dish_path
+
+    assert_response :success
+    assert_select "h2", text: "登録フォーム", count: 1
+    assert_select "form[action=?]", dishes_path, count: 1
+    assert_select "header.shared-header.shared-header--after-login", count: 1
+    assert_select "header nav[aria-label=?]", "給食センター用ナビゲーション", count: 1
+    assert_select "header a.active", count: 0
+    assert_shared_footer
   end
 
   test "failed login keeps the shared logged out header and footer" do
