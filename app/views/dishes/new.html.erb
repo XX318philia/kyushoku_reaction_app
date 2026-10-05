@@ -1,0 +1,32 @@
+<% content_for :title, "料理マスタ登録 | 給食リアクション" %>
+
+<main class="dish-registration">
+  <div class="dish-registration-content mx-auto">
+    <h2 class="text-center">登録フォーム</h2>
+
+    <% if @dish.errors.any? %>
+      <div class="alert alert-danger" role="alert">
+        <ul class="mb-0">
+          <% @dish.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <% category_labels = { "main_dish" => "主菜", "side_dish" => "副菜", "soup" => "汁物", "fruit_or_dessert" => "フルーツ・デザート" } %>
+    <%= form_with model: @dish do |form| %>
+      <div class="mb-3">
+        <%= form.label :category, "料理分類", class: "visually-hidden" %>
+        <%= form.select :category, Dish.categories.keys.map { |category| [category_labels.fetch(category), category] }, { prompt: "料理分類を選択してください" }, class: "form-select" %>
+      </div>
+
+      <div>
+        <%= form.label :name, "料理名", class: "visually-hidden" %>
+        <%= form.text_field :name, placeholder: "料理名", class: "form-control" %>
+      </div>
+
+      <%= form.submit "登録", class: "btn w-100 dish-registration-submit" %>
+    <% end %>
+  </div>
+</main>

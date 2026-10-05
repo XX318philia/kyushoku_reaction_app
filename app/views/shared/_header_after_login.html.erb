@@ -21,7 +21,7 @@
       <span class="shared-header-name">Philia給食センター</span>
       <%= link_to "当日集計結果", "#", class: "nav-link text-nowrap py-2" %>
       <%= link_to "対象料理設定", "#", class: "nav-link text-nowrap py-2" %>
-      <%= link_to "料理マスタ登録", "#", class: "nav-link text-nowrap py-2" %>
+      <%= link_to "料理マスタ登録", new_dish_path, class: "nav-link text-nowrap py-2" %>
       <%= link_to "ログアウト", center_logout_path, class: "nav-link text-nowrap py-2", data: { turbo_method: :delete } %>
     </nav>
   <% end %>

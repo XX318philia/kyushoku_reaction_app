@@ -52,6 +52,61 @@
   border-top: 1px solid #d1d1d1;
 }
 
+.dish-registration {
+  padding: 163px 24px 48px;
+  background-color: #fff;
+  color: #1f1f1f;
+  font-family: "Noto Sans JP", sans-serif;
+
+  h2 {
+    margin-bottom: 16px;
+    color: #000;
+    font-size: 24px;
+    font-weight: normal;
+    line-height: 34px;
+  }
+
+  .form-select,
+  .form-control,
+  .dish-registration-submit {
+    height: 48px;
+    border: 1px solid #1f1f1f;
+    border-radius: 0;
+    color: inherit;
+    font-weight: normal;
+  }
+
+  .form-select,
+  .form-control {
+    padding: 12px 13px;
+    background-color: #fff;
+    font-size: 13px;
+    line-height: 20.8px;
+  }
+
+  .form-select {
+    padding-right: 36px;
+  }
+
+  .form-control::placeholder {
+    color: inherit;
+    opacity: 1;
+  }
+
+  .dish-registration-submit {
+    margin-top: 28px;
+    padding: 12px;
+    background-color: #ededed;
+    font-size: 14px;
+    line-height: 22.4px;
+  }
+}
+
+.dish-registration-content {
+  width: 100%;
+  max-width: 496px;
+}
+
 @include media-breakpoint-up(md) {
   .shared-header--before-login {
     min-height: 111px;
