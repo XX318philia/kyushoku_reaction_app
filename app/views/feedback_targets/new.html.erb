@@ -1,0 +1,44 @@
+<% content_for :title, "対象料理設定 | 給食リアクション" %>
+
+<main class="feedback-target-setting">
+  <div class="feedback-target-setting-content mx-auto">
+    <p class="feedback-target-setting-display">表示</p>
+    <p class="feedback-target-setting-date">対象日：<time datetime="<%= @target_date.iso8601 %>"><%= @target_date.strftime("%Y年%-m月%-d日") %></time></p>
+
+    <% category_labels = { "main_dish" => "主菜", "side_dish" => "副菜", "soup" => "汁物", "fruit_or_dessert" => "フルーツ・デザート" } %>
+    <% if @feedback_target.persisted? %>
+      <div class="feedback-target-setting-state">
+        <p>本日の対象料理は設定済みです</p>
+        <p>対象料理：<%= @feedback_target.dish.name %>（<%= category_labels.fetch(@feedback_target.dish.category) %>）</p>
+      </div>
+    <% else %>
+      <% if @feedback_target.errors.any? %>
+        <div class="alert alert-danger" role="alert">
+          <ul class="mb-0">
+            <% @feedback_target.errors.full_messages.each do |message| %>
+              <li><%= message %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <% if @dishes.empty? %>
+        <div class="feedback-target-setting-state">
+          <p>料理マスタが登録されていません。先に料理を登録してください</p>
+          <%= link_to "料理マスタ登録", new_dish_path %>
+        </div>
+      <% else %>
+        <h2 class="text-center">設定フォーム</h2>
+
+        <%= form_with model: @feedback_target do |form| %>
+          <%= form.label :dish_id, "対象料理", class: "visually-hidden" %>
+          <%= form.select :dish_id, @dishes.map { |dish| ["#{dish.name}（#{category_labels.fetch(dish.category)}）", dish.id] }, { prompt: "料理を選択してください" }, class: "form-select" %>
+
+          <p class="feedback-target-setting-constraint">1日につきフィードバック対象料理は1品</p>
+
+          <%= form.submit "設定", class: "btn w-100 feedback-target-setting-submit" %>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+</main>
