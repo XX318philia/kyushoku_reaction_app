@@ -15,6 +15,16 @@ class DishTest < ActiveSupport::TestCase
     assert_not_nil @dish.updated_at
   end
 
+  test "retrieves only feedback targets belonging to the dish" do
+    @dish.save!
+    first_target = FeedbackTarget.create!(dish: @dish, target_date: Date.new(2026, 10, 7))
+    second_target = FeedbackTarget.create!(dish: @dish, target_date: Date.new(2026, 10, 8))
+    other_dish = Dish.create!(name: "味噌汁", category: :soup)
+    FeedbackTarget.create!(dish: other_dish, target_date: Date.new(2026, 10, 9))
+
+    assert_equal [ first_target, second_target ], @dish.reload.feedback_targets.order(:target_date).to_a
+  end
+
   test "does not save a blank name" do
     [ nil, "", "   ", "　", " 　" ].each do |name|
       @dish.name = name
