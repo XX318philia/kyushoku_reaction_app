@@ -1,4 +1,6 @@
 class Dish < ApplicationRecord
+  has_many :feedback_targets
+
   enum :category, { main_dish: 0, side_dish: 1, soup: 2, fruit_or_dessert: 3 }, validate: true
 
   before_validation :remove_spaces_from_name
