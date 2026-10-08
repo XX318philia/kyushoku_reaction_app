@@ -107,6 +107,63 @@
   max-width: 496px;
 }
 
+.feedback-target-setting {
+  padding: 120px 24px 48px;
+  background-color: #fff;
+  color: #1f1f1f;
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 13px;
+  font-weight: normal;
+  line-height: 20.8px;
+
+  .feedback-target-setting-date {
+    margin: 0 0 35.2px;
+    font-size: 20px;
+  }
+
+  h2 {
+    margin-bottom: 6px;
+    font-size: 20px;
+    font-weight: normal;
+    line-height: 24px;
+  }
+
+  .form-select,
+  .feedback-target-setting-submit {
+    height: 48px;
+    border: 1px solid #1f1f1f;
+    border-radius: 0;
+    color: inherit;
+    font-weight: normal;
+  }
+
+  .form-select {
+    padding: 12px 36px 12px 13px;
+    background-color: #fff;
+    font-size: 13px;
+    line-height: 20.8px;
+  }
+
+  .feedback-target-setting-constraint {
+    margin: 14px 0 20px;
+    font-size: 11px;
+    line-height: 20px;
+  }
+
+  .feedback-target-setting-submit {
+    padding: 12px;
+    background-color: #ededed;
+    font-size: 14px;
+    line-height: 22.4px;
+  }
+}
+
+.feedback-target-setting-content {
+  width: 100%;
+  max-width: 496px;
+  overflow-wrap: anywhere;
+}
+
 @include media-breakpoint-up(md) {
   .shared-header--before-login {
     min-height: 111px;

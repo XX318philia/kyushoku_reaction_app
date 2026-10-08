@@ -7,7 +7,7 @@ class DishesController < ApplicationController
     @dish = Dish.new(dish_params)
 
     if @dish.save
-      redirect_to new_dish_path, status: :see_other
+      redirect_to new_feedback_target_path, status: :see_other
     else
       render :new, status: :unprocessable_content
     end

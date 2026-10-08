@@ -30,20 +30,22 @@ class DishesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role=alert]", count: 0
   end
 
-  test "creates a dish and redirects to a fresh registration form" do
+  test "creates a dish and redirects to the feedback target setting form" do
     assert_difference "Dish.count", 1 do
       post dishes_url, params: { dish: { name: "野菜スープ", category: "soup" } }
     end
 
     assert_response :see_other
-    assert_redirected_to new_dish_url
+    assert_redirected_to new_feedback_target_url
     assert_equal "soup", Dish.find_by!(name: "野菜スープ").category
 
     follow_redirect!
 
     assert_response :success
-    assert_select "input[name=?][value]", "dish[name]", count: 0
-    assert_select "select[name=?] option[selected]", "dish[category]", count: 0
+    assert_select "h2", text: "設定フォーム"
+    assert_select "form[action=?]", feedback_targets_path
+    assert_select "select[name=?] option", "feedback_target[dish_id]", text: "野菜スープ（汁物）", count: 1
+    assert_select "select[name=?] option[selected]", "feedback_target[dish_id]", count: 0
     assert_select "[role=alert]", count: 0
   end
 
@@ -53,7 +55,7 @@ class DishesControllerTest < ActionDispatch::IntegrationTest
         post dishes_url, params: { dish: { name: "野菜スープ", category: category } }
       end
 
-      assert_redirected_to new_dish_url
+      assert_redirected_to new_feedback_target_url
       assert Dish.exists?(name: "野菜スープ", category: category)
     end
   end
@@ -63,7 +65,7 @@ class DishesControllerTest < ActionDispatch::IntegrationTest
       post dishes_url, params: { dish: { name: "　フルーツ ・ ヨーグルト ", category: "fruit_or_dessert" } }
     end
 
-    assert_redirected_to new_dish_url
+    assert_redirected_to new_feedback_target_url
     assert Dish.exists?(name: "フルーツ・ヨーグルト", category: :fruit_or_dessert)
   end
 
@@ -112,7 +114,7 @@ class DishesControllerTest < ActionDispatch::IntegrationTest
       post dishes_url, params: { dish: { name: "野菜スープ", category: "side_dish" } }
     end
 
-    assert_redirected_to new_dish_url
+    assert_redirected_to new_feedback_target_url
     assert Dish.exists?(name: "野菜スープ", category: :side_dish)
   end
 
@@ -137,7 +139,7 @@ class DishesControllerTest < ActionDispatch::IntegrationTest
         created_at: timestamp, updated_at: timestamp } }
     end
 
-    assert_redirected_to new_dish_url
+    assert_redirected_to new_feedback_target_url
     dish = Dish.find_by!(name: "野菜スープ", category: :soup)
     assert_not_equal(-1, dish.id)
     assert_not_equal timestamp, dish.created_at

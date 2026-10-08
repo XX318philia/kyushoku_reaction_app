@@ -21,4 +21,5 @@ Rails.application.routes.draw do
   delete "center/logout", to: "center_sessions#destroy", as: :center_logout
 
   resources :dishes, only: [ :new, :create ]
+  resources :feedback_targets, only: [ :new, :create ]
 end
