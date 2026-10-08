@@ -23,6 +23,22 @@ class ClassroomTest < ActiveSupport::TestCase
     assert classroom.errors.of_kind?(:kindergarten, :blank)
   end
 
+  test "retrieves only reactions belonging to the classroom" do
+    classroom = Classroom.create!(kindergarten: @kindergarten, name: "ひまわり組")
+    other_classroom = Classroom.create!(kindergarten: @kindergarten, name: "すみれ組")
+    dish = Dish.create!(name: "野菜スープ", category: :soup)
+    first_target = FeedbackTarget.create!(dish: dish, target_date: Date.new(2026, 10, 8))
+    second_target = FeedbackTarget.create!(dish: dish, target_date: Date.new(2026, 10, 9))
+    first_reaction = Reaction.create!(classroom: classroom, feedback_target: first_target,
+      positive_count: 1, neutral_count: 0, negative_count: 0)
+    second_reaction = Reaction.create!(classroom: classroom, feedback_target: second_target,
+      positive_count: 0, neutral_count: 1, negative_count: 0)
+    Reaction.create!(classroom: other_classroom, feedback_target: first_target,
+      positive_count: 0, neutral_count: 0, negative_count: 1)
+
+    assert_equal [ first_reaction, second_reaction ], classroom.reload.reactions.order(:feedback_target_id).to_a
+  end
+
   test "does not save a classroom with a nil name" do
     classroom = Classroom.new(kindergarten: @kindergarten, name: nil)
 
