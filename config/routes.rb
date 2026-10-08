@@ -22,4 +22,5 @@ Rails.application.routes.draw do
 
   resources :dishes, only: [ :new, :create ]
   resources :feedback_targets, only: [ :new, :create ]
+  resources :reactions, only: [ :new ]
 end

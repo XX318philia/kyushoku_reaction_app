@@ -26,11 +26,11 @@ class KindergartenSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_nil request.session[:user_id]
   end
 
-  test "logs in a kindergarten user and redirects to the root" do
+  test "logs in a kindergarten user and redirects to reaction entry" do
     post kindergarten_login_url, params: { login_id: @kindergarten_user.login_id, password: "kindergarten-password" }
 
     assert_response :see_other
-    assert_redirected_to root_url
+    assert_redirected_to new_reaction_url
     assert_equal @kindergarten_user.id, request.session[:user_id]
 
     follow_redirect!
@@ -119,7 +119,7 @@ class KindergartenSessionsControllerTest < ActionDispatch::IntegrationTest
 
     post kindergarten_login_url, params: { login_id: @kindergarten_user.login_id, password: "kindergarten-password" }
 
-    assert_redirected_to root_url
+    assert_redirected_to new_reaction_url
     assert_equal @kindergarten_user.id, request.session[:user_id]
   end
 
@@ -180,7 +180,7 @@ class KindergartenSessionsSessionTest < ActionController::TestCase
 
     post :create, params: { login_id: user.login_id, password: "kindergarten-password" }
 
-    assert_redirected_to root_url
+    assert_redirected_to new_reaction_url
     assert_equal user.id, session[:user_id]
     assert_nil session[:previous_value]
     assert_equal user, @controller.send(:current_user)

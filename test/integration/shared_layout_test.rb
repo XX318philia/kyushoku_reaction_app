@@ -26,7 +26,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "header nav[aria-label=?]", "幼稚園用ナビゲーション" do
         assert_select "span", text: kindergarten.name
-        assert_select "a[href='#']", text: "入力・編集", count: 1
+        assert_select "a[href=?]", new_reaction_path, text: "入力・編集", count: 1
         assert_select "a[href='#']", text: "集計結果", count: 1
         assert_select "button[aria-controls=kindergarten-menu-items][aria-expanded=false]"
         assert_select "a[href=?][data-turbo-method=delete].d-none.d-md-block", kindergarten_logout_path, text: "ログアウト", count: 1
@@ -61,6 +61,23 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       assert_select "header a.active", count: 0
       assert_shared_footer
     end
+  end
+
+  test "kindergarten reaction entry link opens the page with the shared header and footer" do
+    user = User.create!(login_id: "Sakura", password: "kindergarten-password", role: :kindergarten,
+      kindergarten: Kindergarten.create!(name: "さくら幼稚園"))
+    post kindergarten_login_path, params: { login_id: user.login_id, password: "kindergarten-password" }
+    get root_path
+
+    assert_select "header a[href=?].nav-link", new_reaction_path, text: "入力・編集", count: 1
+
+    get new_reaction_path
+
+    assert_response :success
+    assert_select "h2", text: "入力フォーム", count: 1
+    assert_select "header.shared-header.shared-header--after-login", count: 1
+    assert_select "header nav[aria-label=?]", "幼稚園用ナビゲーション", count: 1
+    assert_shared_footer
   end
 
   test "center dish registration link opens the form with the shared header and footer" do

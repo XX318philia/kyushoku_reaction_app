@@ -7,7 +7,7 @@ class KindergartenSessionsController < ApplicationController
 
     if user&.kindergarten?
       log_in(user)
-      redirect_to root_path, status: :see_other
+      redirect_to new_reaction_path, status: :see_other
     else
       flash.now[:alert] = "ログインIDまたはパスワードが正しくありません"
       render :new, status: :unprocessable_content
