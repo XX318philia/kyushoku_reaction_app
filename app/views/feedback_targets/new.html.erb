@@ -2,7 +2,6 @@
 
 <main class="feedback-target-setting">
   <div class="feedback-target-setting-content mx-auto">
-    <p class="feedback-target-setting-display">表示</p>
     <p class="feedback-target-setting-date">対象日：<time datetime="<%= @target_date.iso8601 %>"><%= @target_date.strftime("%Y年%-m月%-d日") %></time></p>
 
     <% category_labels = { "main_dish" => "主菜", "side_dish" => "副菜", "soup" => "汁物", "fruit_or_dessert" => "フルーツ・デザート" } %>

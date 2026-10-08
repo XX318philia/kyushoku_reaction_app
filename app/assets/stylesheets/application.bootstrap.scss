@@ -108,7 +108,7 @@
 }
 
 .feedback-target-setting {
-  padding: 92px 24px 48px;
+  padding: 120px 24px 48px;
   background-color: #fff;
   color: #1f1f1f;
   font-family: "Noto Sans JP", sans-serif;
@@ -116,12 +116,9 @@
   font-weight: normal;
   line-height: 20.8px;
 
-  .feedback-target-setting-display {
-    margin: 0 0 7.2px;
-  }
-
   .feedback-target-setting-date {
     margin: 0 0 35.2px;
+    font-size: 20px;
   }
 
   h2 {
