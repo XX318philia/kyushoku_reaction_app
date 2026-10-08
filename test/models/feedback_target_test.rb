@@ -24,6 +24,22 @@ class FeedbackTargetTest < ActiveSupport::TestCase
     assert @feedback_target.errors.of_kind?(:dish, :blank)
   end
 
+  test "retrieves only reactions belonging to the feedback target" do
+    @feedback_target.save!
+    other_target = FeedbackTarget.create!(dish: @dish, target_date: @feedback_target.target_date + 1.day)
+    kindergarten = Kindergarten.create!(name: "さくら幼稚園")
+    first_classroom = Classroom.create!(kindergarten: kindergarten, name: "ひまわり組")
+    second_classroom = Classroom.create!(kindergarten: kindergarten, name: "すみれ組")
+    first_reaction = Reaction.create!(classroom: first_classroom, feedback_target: @feedback_target,
+      positive_count: 1, neutral_count: 0, negative_count: 0)
+    second_reaction = Reaction.create!(classroom: second_classroom, feedback_target: @feedback_target,
+      positive_count: 0, neutral_count: 1, negative_count: 0)
+    Reaction.create!(classroom: first_classroom, feedback_target: other_target,
+      positive_count: 0, neutral_count: 0, negative_count: 1)
+
+    assert_equal [ first_reaction, second_reaction ], @feedback_target.reload.reactions.order(:classroom_id).to_a
+  end
+
   test "does not save with a nonexistent dish" do
     @feedback_target.dish_id = Dish.maximum(:id) + 1
 
