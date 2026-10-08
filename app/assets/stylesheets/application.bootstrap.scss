@@ -204,6 +204,20 @@
   overflow-wrap: anywhere;
 }
 
+.reaction-entry-unset-notice {
+  color: #000;
+  font-size: 15px;
+  line-height: normal;
+
+  p {
+    margin: 0;
+  }
+
+  p + p {
+    margin-top: 1lh;
+  }
+}
+
 @include media-breakpoint-up(md) {
   .shared-header--before-login {
     min-height: 111px;
