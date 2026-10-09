@@ -40,6 +40,7 @@ MVPでは、その最小構成として「リアクションを届ける → 集
   - 料理分類選択
   - 料理名入力
 - 当日のフィードバック対象料理設定機能
+- 本日の対象料理設定の取消機能
 - 対象料理が未設定の場合の案内表示
 - 当日の集計結果表示機能
 - 各リアクションの人数表示機能
@@ -70,15 +71,16 @@ roleで利用可能な機能も制御する。
 
 #### users
 
-ログインするアカウント情報を管理するテーブル。
+* ログインするアカウント情報を管理するテーブル。
+  * `id` : bigint / 主キー
+  * `login_id` : string / ログイン時に使用する識別子 / NOT NULL / UNIQUE
+  * `password_digest` : string / `has_secure_password` で使用するハッシュ化済みパスワード / NOT NULL
+  * `role` : string / 幼稚園側アカウント・給食センター側アカウントの判別 / NOT NULL
+  * `kindergarten_id` : bigint / 幼稚園側アカウントが所属する幼稚園 / 外部キー / NULL許容
+  * UNIQUE (`kindergarten_id`)
+    * 同一幼稚園への複数Userの所属を禁止するため
 
-* `id` : bigint / 主キー
-* `login_id` : string / ログイン時に使用する識別子 / NOT NULL / UNIQUE
-* `password_digest` : string / `has_secure_password` で使用するハッシュ化済みパスワード / NOT NULL
-* `role` : string / 幼稚園側アカウント・給食センター側アカウントの判別 / NOT NULL
-* `kindergarten_id` : bigint / 幼稚園側アカウントが所属する幼稚園 / 外部キー / NULL許容
-* UNIQUE (`kindergarten_id`)
-  * 同一幼稚園への複数Userの所属を禁止するため
+##### 注意点
 
 * 1 Userは0または1 Kindergartenに所属し、1 Kindergartenは0または1 Userを持つ。
 * KindergartenはUser未登録の状態でも保存できる。
@@ -100,34 +102,35 @@ roleで利用可能な機能も制御する。
 
 #### kindergartens
 
-幼稚園そのものの情報を管理するテーブル。
-
-* `id` : bigint / 主キー
-* `name` : string / 幼稚園名 / NOT NULL
+* 幼稚園そのものの情報を管理するテーブル。
+  * `id` : bigint / 主キー
+  * `name` : string / 幼稚園名 / NOT NULL
 
 ---
 
 #### classrooms
 
-幼稚園に所属するクラス情報を管理するテーブル。
+* 幼稚園に所属するクラス情報を管理するテーブル。
+  * `id` : bigint / 主キー
+  * `kindergarten_id` : bigint / 所属する幼稚園 / 外部キー / NOT NULL
+  * `name` : string / クラス名 / NOT NULL
+  * UNIQUE (`kindergarten_id`, `name`)
 
-* `id` : bigint / 主キー
-* `kindergarten_id` : bigint / 所属する幼稚園 / 外部キー / NOT NULL
-* `name` : string / クラス名 / NOT NULL
-* UNIQUE (`kindergarten_id`, `name`)
+##### 注意点
 
-同一幼稚園内で同じクラス名が重複しないように、`kindergarten_id` と `name` に複合ユニーク制約を設定します。
+* 同一幼稚園内で同じクラス名が重複しないように、`kindergarten_id` と `name` に複合ユニーク制約を設定します。
 
 ---
 
 #### dishes
 
-料理マスタを管理するテーブル。
+* 料理マスタを管理するテーブル。
+  * `id` : bigint / 主キー
+  * `name` : string / 料理名 / NOT NULL
+  * `category` : integer / 料理分類 / NOT NULL
+  * UNIQUE( `name`, `category`)
 
-* `id` : bigint / 主キー
-* `name` : string / 料理名 / NOT NULL
-* `category` : integer / 料理分類 / NOT NULL
-* UNIQUE( `name`, `category`)
+##### 注意点
 
 * 料理名には、ひらがな・カタカナ・漢字・長音記号「ー」・中黒「・」を使用できる。
 * 料理名に含まれる半角・全角スペースは、前後・途中を問わず除去してから保存する。
@@ -144,44 +147,51 @@ roleで利用可能な機能も制御する。
 
 #### feedback_targets
 
-「いつ、どの料理をフィードバック対象にしたか」を管理するテーブル。
+* 「いつ、どの料理をフィードバック対象にしたか」を管理するテーブル。
+  * `id` : bigint / 主キー
+  * `dish_id` : bigint / フィードバック対象となる料理 / 外部キー / NOT NULL
+  * `target_date` : date / フィードバック対象日 / NOT NULL
+  * UNIQUE (`target_date`)
 
-給食センター側が事前に「対象日 × フィードバック対象料理」を設定します。
+##### 注意点
 
-リアクション登録より先に「当日の対象料理」を設定するため、クラス単位の入力結果を管理する `reactions` とは分離します。
-
-これにより、リアクションがまだ1件も登録されていない状態でも、当日の対象料理を保持・表示できます。
-
-* `id` : bigint / 主キー
-* `dish_id` : bigint / フィードバック対象となる料理 / 外部キー / NOT NULL
-* `target_date` : date / フィードバック対象日 / NOT NULL
-* UNIQUE (`target_date`)
-
-MVPでは「1日につきフィードバック対象料理は1品」とするため、`target_date` にユニーク制約を設定します。
+* 給食センター側が事前に「対象日 × フィードバック対象料理」を設定します。
+* リアクション登録より先に「当日の対象料理」を設定するため、クラス単位の入力結果を管理する `reactions` とは分離します。
+* これにより、リアクションがまだ1件も登録されていない状態でも、当日の対象料理を保持・表示できます。
+* MVPでは「1日につきフィードバック対象料理は1品」とするため、`target_date` にユニーク制約を設定します。
 
 ---
 
 #### reactions
 
-クラス単位のリアクション記録を管理するテーブル。
+* クラス単位のリアクション記録を管理するテーブル。
+  * `id` : bigint / 主キー
+  * `classroom_id` : bigint / リアクションを登録したクラス / 外部キー / NOT NULL
+  * `feedback_target_id` : bigint / 対象となるフィードバック対象料理・提供日 / 外部キー / NOT NULL
+  * `positive_count` : integer / 「美味しそうに食べていた」人数 / NOT NULL
+  * `neutral_count` : integer / 「普通・どちらでもない」人数 / NOT NULL
+  * `negative_count` : integer / 「苦手そうに食べていた」人数 / NOT NULL
+  * UNIQUE (`classroom_id`, `feedback_target_id`)
 
-* `id` : bigint / 主キー
-* `classroom_id` : bigint / リアクションを登録したクラス / 外部キー / NOT NULL
-* `feedback_target_id` : bigint / 対象となるフィードバック対象料理・提供日 / 外部キー / NOT NULL
-* `positive_count` : integer / 「美味しそうに食べていた」人数 / NOT NULL
-* `neutral_count` : integer / 「普通・どちらでもない」人数 / NOT NULL
-* `negative_count` : integer / 「苦手そうに食べていた」人数 / NOT NULL
-* UNIQUE (`classroom_id`, `feedback_target_id`)
+##### 注意点
 
-「1クラス × 1フィードバック対象料理 × 1提供日 = 1リアクション記録」とするため、`classroom_id` と `feedback_target_id` に複合ユニーク制約を設定します。
+* 「1クラス × 1フィードバック対象料理 × 1提供日 = 1リアクション記録」とするため、`classroom_id` と `feedback_target_id` に複合ユニーク制約を設定します。
 
-3種類のリアクション人数はそれぞれ0以上の整数を必須とし、未入力・負数・小数・数値以外はモデルのバリデーションで拒否します。各項目の0は許可しますが、3項目すべて0の場合は独自バリデーションで拒否します。
+##### 人数入力の制約とCHECK制約について
 
-DBでも各人数のNOT NULL制約と以下のCHECK制約を設定し、モデルのバリデーションを省略した場合も負数や3項目すべて0の記録を保存できないようにします。
+* 3種類のリアクション人数はそれぞれ0以上の整数を必須とし、未入力・負数・小数・数値以外はモデルのバリデーションで拒否します。各項目の0は許可しますが、3項目すべて0の場合は独自バリデーションで拒否します。
+* DBでも各人数のNOT NULL制約と以下のCHECK制約を設定し、モデルのバリデーションを省略した場合も負数や3項目すべて0の記録を保存できないようにします。
+* 観察対象人数は3種類のリアクション人数の合計から算出するため、独立したカラムとして保持しません。
 
 * CHECK (`positive_count >= 0`)
 * CHECK (`neutral_count >= 0`)
 * CHECK (`negative_count >= 0`)
 * CHECK (`positive_count + neutral_count + negative_count > 0`)
 
-観察対象人数は3種類のリアクション人数の合計から算出するため、独立したカラムとして保持しません。
+
+### 削除時の動作
+
+* 当日のフィードバック対象料理の設定を取り消す場合、対象となる `FeedbackTarget` を削除する。
+* 関連する `Reaction` もすべて削除する。
+* `Dish`、`User`、`Kindergarten`、`Classroom` は削除しない。
+* Railsモデルでは `has_many :reactions, dependent: :destroy` を使用する。
