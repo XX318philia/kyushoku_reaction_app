@@ -12,6 +12,11 @@
 
       <%= label_tag :classroom_id, "担当クラス", class: "visually-hidden" %>
       <%= select_tag :classroom_id, options_from_collection_for_select(@classrooms, :id, :name), prompt: "担当クラス", class: "form-select" %>
+    <% else %>
+      <div class="reaction-entry-unset-notice">
+        <p>本日のフィードバック対象料理はまだ設定されていません。</p>
+        <p>給食センター側で設定されると、リアクションを入力できるようになります。</p>
+      </div>
     <% end %>
   </div>
 </main>

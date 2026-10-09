@@ -30,6 +30,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       end
     end
     assert_select "main form, main input, main button", count: 0
+    assert_select ".reaction-entry-unset-notice", count: 0
   end
 
   test "displays Japanese labels for all four dish categories" do
@@ -118,17 +119,53 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal user.id, request.session[:user_id]
   end
 
-  test "handles an unset target without showing another day's dish or the later issue's guidance" do
+  test "displays two guidance paragraphs for an unset target even when other days have targets" do
     @feedback_target.destroy!
-    FeedbackTarget.create!(dish: @dish, target_date: Date.yesterday)
-    FeedbackTarget.create!(dish: @dish, target_date: Date.tomorrow)
+    yesterday_dish = Dish.create!(name: "肉じゃが", category: :main_dish)
+    tomorrow_dish = Dish.create!(name: "野菜スープ", category: :soup)
+    yesterday_target = FeedbackTarget.create!(dish: yesterday_dish, target_date: Date.yesterday)
+    FeedbackTarget.create!(dish: tomorrow_dish, target_date: Date.tomorrow)
+    reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: yesterday_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+    original_attributes = reaction.attributes
 
-    get new_reaction_url
+    assert_no_difference "Reaction.count" do
+      get new_reaction_url, params: { target_date: Date.yesterday, classroom_id: @classrooms.last.id,
+        reaction: { feedback_target_id: yesterday_target.id, positive_count: 10, neutral_count: 10, negative_count: 10 } }
+    end
 
     assert_response :success
-    assert_select "time[datetime=?]", Date.current.iso8601
-    assert_select ".reaction-entry-dish, main select, main form", count: 0
-    assert_select "main", text: /まだ設定されていません/, count: 0
+    assert_select "h2", text: "入力フォーム"
+    assert_select "time[datetime='2026-10-08']", text: "2026年10月8日"
+    assert_select ".reaction-entry-unset-notice" do
+      assert_select "p", count: 2
+      assert_select "p:first-child", text: "本日のフィードバック対象料理はまだ設定されていません。"
+      assert_select "p:last-child", text: "給食センター側で設定されると、リアクションを入力できるようになります。"
+    end
+    assert_select ".reaction-entry-dish, main label, main select, main input, main button, main form", count: 0
+    assert_select "main", text: /肉じゃが|野菜スープ/, count: 0
+    assert_equal original_attributes, reaction.reload.attributes
+  end
+
+  test "displays the normal page after today's target is set and the page is requested again" do
+    @feedback_target.destroy!
+
+    assert_no_difference "Reaction.count" do
+      get new_reaction_url
+      assert_response :success
+      assert_select ".reaction-entry-unset-notice p", count: 2
+
+      FeedbackTarget.create!(dish: @dish, target_date: Date.current)
+
+      get new_reaction_url
+      assert_response :success
+      assert_select ".reaction-entry-unset-notice", count: 0
+      assert_select "h2", text: "入力フォーム"
+      assert_select "time[datetime='2026-10-08']", text: "2026年10月8日"
+      assert_select ".reaction-entry-dish", text: "対象料理：カレー（主菜）"
+      assert_select "select[name=classroom_id] option", count: @classrooms.size + 1
+      assert_select "main form, main input, main button", count: 0
+    end
   end
 
   test "display and supplied class or reaction parameters never create or update reactions" do
