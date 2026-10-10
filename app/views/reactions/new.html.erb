@@ -1,4 +1,7 @@
 <% content_for :title, "リアクション入力 | 給食リアクション" %>
+<% content_for :head do %>
+  <%= stylesheet_link_tag "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&display=swap", "data-turbo-track": "dynamic" %>
+<% end %>
 
 <main class="reaction-entry">
   <div class="reaction-entry-content mx-auto">
@@ -12,6 +15,13 @@
 
       <%= label_tag :classroom_id, "担当クラス", class: "visually-hidden" %>
       <%= select_tag :classroom_id, options_from_collection_for_select(@classrooms, :id, :name), prompt: "担当クラス", class: "form-select" %>
+
+      <% { positive_count: "美味しそうに食べていた", neutral_count: "普通・どちらでもない", negative_count: "苦手そうに食べていた" }.each do |attribute, label| %>
+        <div class="reaction-entry-count">
+          <%= label_tag "reaction_#{attribute}", label %>
+          <%= number_field_tag "reaction[#{attribute}]", 0, id: "reaction_#{attribute}", min: 0, step: 1, required: true, class: "form-control" %>
+        </div>
+      <% end %>
     <% else %>
       <div class="reaction-entry-unset-notice">
         <p>本日のフィードバック対象料理はまだ設定されていません。</p>

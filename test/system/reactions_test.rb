@@ -22,7 +22,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     @feedback_target = FeedbackTarget.create!(dish: dish, target_date: Date.current)
   end
 
-  test "login and header navigation open a responsive page and class selection never saves reactions" do
+  test "login and header navigation open responsive count inputs and page operations never save reactions" do
     reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
       positive_count: 2, neutral_count: 1, negative_count: 0)
     original_attributes = reaction.attributes
@@ -34,32 +34,52 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       click_button "ログイン"
 
       assert_current_path new_reaction_path
+      assert_noto_sans_jp_loaded
       assert_selector "main time", text: Date.current.strftime("%Y年%-m月%-d日")
       assert_selector "main", text: "対象料理：カレー（主菜）"
+      assert_field "美味しそうに食べていた", with: "0"
+      assert_field "普通・どちらでもない", with: "0"
+      assert_field "苦手そうに食べていた", with: "0"
 
       [ 390, 1280 ].each do |width|
         page.driver.browser.manage.window.resize_to(width, 844)
+        fill_in "美味しそうに食べていた", with: "12"
+        fill_in "普通・どちらでもない", with: "3"
+        fill_in "苦手そうに食べていた", with: "1"
+        find_field("苦手そうに食べていた").send_keys(:arrow_up)
+        assert_field "苦手そうに食べていた", with: "2"
+        find_field("苦手そうに食べていた").send_keys(:arrow_down, :enter)
+        assert_field "苦手そうに食べていた", with: "1"
         select "年少", from: "担当クラス"
         assert_select "担当クラス", selected: "年少"
         select "年中", from: "担当クラス"
         assert_select "担当クラス", selected: "年中"
+        assert_field "美味しそうに食べていた", with: "12"
+        assert_field "普通・どちらでもない", with: "3"
+        assert_field "苦手そうに食べていた", with: "1"
         assert_current_path new_reaction_path
-        assert_no_selector "main input, main button"
+        assert_no_selector "main form, main button, main input[type=submit]"
         assert page.evaluate_script(<<~JS), "Reaction entry overflows the viewport at #{width}px"
           document.documentElement.scrollWidth <= window.innerWidth &&
-          [...document.querySelectorAll('main h2, main p, main select')].every(element => {
+          [...document.querySelectorAll('main h2, main p, main select, main label, main input')].every(element => {
             const rect = element.getBoundingClientRect();
             return rect.left >= 0 && rect.right <= window.innerWidth;
           })
         JS
+        assert_reaction_count_layout(width)
         assert page.evaluate_script("Math.abs(document.querySelector('footer').getBoundingClientRect().bottom - window.innerHeight) <= 1")
-        page.save_screenshot(Rails.root.join("tmp/screenshots/issue29-reactions-#{width}.png"))
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue31-reactions-#{width}.png"))
       end
 
       visit root_path
+      assert_no_selector "head link[href*='fonts.googleapis.com']", visible: :all
       click_link "入力・編集"
       assert_current_path new_reaction_path
+      assert_noto_sans_jp_loaded
       assert_select "担当クラス", selected: "担当クラス"
+      assert_field "美味しそうに食べていた", with: "0"
+      assert_field "普通・どちらでもない", with: "0"
+      assert_field "苦手そうに食べていた", with: "0"
     end
 
     assert_equal original_attributes, reaction.reload.attributes
@@ -72,6 +92,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     fill_in "ログインID", with: @user.login_id
     fill_in "パスワード", with: "kindergarten-password"
     click_button "ログイン"
+    assert_noto_sans_jp_loaded
 
     [ 390, 1280 ].each do |width|
       page.driver.browser.manage.window.resize_to(width, 844)
@@ -83,7 +104,8 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         document.querySelector('#classroom_id').getBoundingClientRect().top >=
           document.querySelector('.reaction-entry-dish').getBoundingClientRect().bottom + 12
       JS
-      page.save_screenshot(Rails.root.join("tmp/screenshots/issue29-reactions-long-#{width}.png"))
+      assert_reaction_count_layout(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue31-reactions-long-#{width}.png"))
     end
   end
 
@@ -97,6 +119,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       click_button "ログイン"
 
       assert_current_path new_reaction_path
+      assert_noto_sans_jp_loaded
       assert_selector "main h2", text: "入力フォーム"
       assert_selector "main time", text: Date.current.strftime("%Y年%-m月%-d日")
       assert_selector ".reaction-entry-unset-notice p", count: 2
@@ -143,7 +166,57 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       assert_no_selector ".reaction-entry-unset-notice"
       assert_selector ".reaction-entry-dish", text: "対象料理：カレー（主菜）"
       assert_select "担当クラス", selected: "担当クラス"
-      assert_no_selector "main input, main button, main form"
+      assert_selector "main input[type=number][value='0']", count: 3
+      assert_no_selector "main button, main form, main input[type=submit]"
     end
+  end
+
+  private
+
+  def assert_noto_sans_jp_loaded
+    assert_selector "head link[href*='fonts.googleapis.com']", visible: :all, wait: 10 do
+      page.evaluate_script("[...document.fonts].some(font => font.family.includes('Noto Sans JP'))")
+    end
+    assert page.evaluate_async_script(<<~JS), "Noto Sans JP did not load for the reaction page"
+      const done = arguments[arguments.length - 1];
+      document.fonts.load('400 11px "Noto Sans JP"', '美味しそうに食べていた').then(fonts => {
+        document.fonts.ready.then(() => done(fonts.length > 0 && fonts.every(font => font.status === 'loaded')));
+      }).catch(() => done(false));
+    JS
+  end
+
+  def assert_reaction_count_layout(width)
+    assert page.evaluate_script(<<~JS), "Reaction count inputs differ from the design or overlap at #{width}px"
+      (() => {
+        let previousRect = document.querySelector('#classroom_id').getBoundingClientRect();
+        return [...document.querySelectorAll('.reaction-entry-count')].every(field => {
+          const input = field.querySelector('input');
+          const label = field.querySelector('label');
+          const rect = input.getBoundingClientRect();
+          const labelRect = label.getBoundingClientRect();
+          const style = getComputedStyle(input);
+          const labelStyle = getComputedStyle(label);
+          const matches = Math.abs(rect.width - 326) <= 1 && Math.abs(rect.height - 40) <= 1 &&
+            Math.abs((rect.left + rect.right) / 2 - window.innerWidth / 2) <= 1 &&
+            Math.abs(rect.top - previousRect.bottom - 12) <= 1 &&
+            rect.left >= 0 && rect.right <= window.innerWidth &&
+            labelRect.left >= rect.left && labelRect.right <= rect.left + parseFloat(style.paddingLeft) &&
+            labelRect.top >= rect.top && labelRect.bottom <= rect.bottom &&
+            style.backgroundColor === 'rgb(255, 255, 255)' && style.color === 'rgb(31, 31, 31)' &&
+            style.fontFamily.includes('Noto Sans JP') && style.fontSize === '11px' &&
+            style.fontWeight === '400' && style.textDecorationLine === 'none' &&
+            labelStyle.color === style.color && labelStyle.fontSize === '11px' &&
+            labelStyle.fontWeight === '400' && labelStyle.textDecorationLine === 'none' &&
+            ['Top', 'Right', 'Bottom', 'Left'].every(side =>
+              style['border' + side + 'Width'] === '1px' &&
+              style['border' + side + 'Style'] === 'solid' &&
+              style['border' + side + 'Color'] === 'rgb(31, 31, 31)') &&
+            ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].every(corner =>
+              style['border' + corner + 'Radius'] === '0px');
+          previousRect = rect;
+          return matches;
+        });
+      })()
+    JS
   end
 end
