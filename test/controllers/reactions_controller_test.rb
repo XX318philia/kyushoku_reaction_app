@@ -12,11 +12,13 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     post kindergarten_login_path, params: { login_id: @user.login_id, password: "kindergarten-password" }
   end
 
-  test "displays today's date and dish with a class selector and no reaction inputs" do
+  test "displays today's date and dish with a class selector and three initial reaction counts" do
     get new_reaction_url
 
     assert_response :success
     assert_select "title", text: "リアクション入力 | 給食リアクション"
+    assert_select "head link[rel=stylesheet][data-turbo-track=dynamic][href=?]",
+      "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&display=swap", count: 1
     assert_select "h2", text: "入力フォーム"
     assert_select "time[datetime='2026-10-08']", text: "2026年10月8日"
     assert_select "main p", text: "対象料理：カレー（主菜）"
@@ -29,7 +31,16 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
         assert_select "option[value=?]", classroom.id, text: classroom.name, count: 1
       end
     end
-    assert_select "main form, main input, main button", count: 0
+    assert_select "select#classroom_id + .reaction-entry-count + .reaction-entry-count + .reaction-entry-count", count: 1
+    assert_select "main input", count: 3
+    { positive_count: "美味しそうに食べていた", neutral_count: "普通・どちらでもない", negative_count: "苦手そうに食べていた" }.each do |attribute, label|
+      assert_select ".reaction-entry-count" do
+        assert_select "label[for=?]", "reaction_#{attribute}", text: label, count: 1
+        assert_select "input#reaction_#{attribute}[name=?][type=number][value='0'][min='0'][step='1'][required]:not([disabled]):not([readonly])",
+          "reaction[#{attribute}]", count: 1
+      end
+    end
+    assert_select "main form, main button, main input[type=submit]", count: 0
     assert_select ".reaction-entry-unset-notice", count: 0
   end
 
@@ -164,7 +175,8 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       assert_select "time[datetime='2026-10-08']", text: "2026年10月8日"
       assert_select ".reaction-entry-dish", text: "対象料理：カレー（主菜）"
       assert_select "select[name=classroom_id] option", count: @classrooms.size + 1
-      assert_select "main form, main input, main button", count: 0
+      assert_select "main input[type=number][value='0']", count: 3
+      assert_select "main form, main button, main input[type=submit]", count: 0
     end
   end
 
@@ -182,6 +194,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal original_attributes, reaction.reload.attributes
-    assert_select "main input, main button, main form", count: 0
+    assert_select "main input[type=number][value='0']", count: 3
+    assert_select "main button, main form, main input[type=submit]", count: 0
   end
 end
