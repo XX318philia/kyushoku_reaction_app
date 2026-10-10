@@ -22,7 +22,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     @feedback_target = FeedbackTarget.create!(dish: dish, target_date: Date.current)
   end
 
-  test "login and header navigation open responsive count inputs and page operations never save reactions" do
+  test "login header navigation and changing inputs do not save or load existing reactions" do
     reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
       positive_count: 2, neutral_count: 1, negative_count: 0)
     original_attributes = reaction.attributes
@@ -48,7 +48,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         fill_in "苦手そうに食べていた", with: "1"
         find_field("苦手そうに食べていた").send_keys(:arrow_up)
         assert_field "苦手そうに食べていた", with: "2"
-        find_field("苦手そうに食べていた").send_keys(:arrow_down, :enter)
+        find_field("苦手そうに食べていた").send_keys(:arrow_down)
         assert_field "苦手そうに食べていた", with: "1"
         select "年少", from: "担当クラス"
         assert_select "担当クラス", selected: "年少"
@@ -58,7 +58,8 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         assert_field "普通・どちらでもない", with: "3"
         assert_field "苦手そうに食べていた", with: "1"
         assert_current_path new_reaction_path
-        assert_no_selector "main form, main button, main input[type=submit]"
+        assert_selector "main form[action='#{reactions_path}'][method=post]"
+        assert_button "登録"
         assert page.evaluate_script(<<~JS), "Reaction entry overflows the viewport at #{width}px"
           document.documentElement.scrollWidth <= window.innerWidth &&
           [...document.querySelectorAll('main h2, main p, main select, main label, main input')].every(element => {
@@ -67,8 +68,9 @@ class ReactionsTest < ActionDispatch::SystemTestCase
           })
         JS
         assert_reaction_count_layout(width)
+        assert_registration_layout(width)
         assert page.evaluate_script("Math.abs(document.querySelector('footer').getBoundingClientRect().bottom - window.innerHeight) <= 1")
-        page.save_screenshot(Rails.root.join("tmp/screenshots/issue31-reactions-#{width}.png"))
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-#{width}.png"))
       end
 
       visit root_path
@@ -105,7 +107,8 @@ class ReactionsTest < ActionDispatch::SystemTestCase
           document.querySelector('.reaction-entry-dish').getBoundingClientRect().bottom + 12
       JS
       assert_reaction_count_layout(width)
-      page.save_screenshot(Rails.root.join("tmp/screenshots/issue31-reactions-long-#{width}.png"))
+      assert_registration_layout(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-long-#{width}.png"))
     end
   end
 
@@ -146,7 +149,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
             const notice = document.querySelector('.reaction-entry-unset-notice');
             const elements = [notice, ...notice.querySelectorAll('p')];
             return Math.abs(rect.width - 326) <= 1 &&
-              Math.abs((rect.left + rect.right) / 2 - window.innerWidth / 2) <= 1 &&
+              Math.abs((rect.left + rect.right) / 2 - document.documentElement.clientWidth / 2) <= 1 &&
               getComputedStyle(document.querySelector('.reaction-entry-date')).fontSize === '16px' &&
               elements.every(element => {
                 const style = getComputedStyle(element);
@@ -167,11 +170,191 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       assert_selector ".reaction-entry-dish", text: "対象料理：カレー（主菜）"
       assert_select "担当クラス", selected: "担当クラス"
       assert_selector "main input[type=number][value='0']", count: 3
-      assert_no_selector "main button, main form, main input[type=submit]"
+      assert_selector "main form[action='#{reactions_path}'][method=post]"
+      assert_button "登録"
     end
   end
 
+  test "registers from mobile and desktop and returns to the input page with a success message" do
+    log_in
+
+    [ 390, 1280 ].zip(@classrooms).each do |width, classroom|
+      page.driver.browser.manage.window.resize_to(width, 844)
+      select classroom.name, from: "担当クラス"
+      fill_in "美味しそうに食べていた", with: "12"
+      fill_in "普通・どちらでもない", with: "3"
+      fill_in "苦手そうに食べていた", with: "1"
+
+      assert_difference "Reaction.count", 1 do
+        click_button "登録"
+        assert_current_path new_reaction_path
+        assert_selector ".alert.alert-success[role=status]", text: "登録が成功しました"
+      end
+
+      reaction = Reaction.find_by!(classroom: classroom, feedback_target: @feedback_target)
+      assert_equal [ 12, 3, 1 ], reaction.attributes.values_at("positive_count", "neutral_count", "negative_count")
+      assert_select "担当クラス", selected: "担当クラス"
+      assert_field "美味しそうに食べていた", with: "0"
+      assert_no_selector "[role=alert]"
+      assert_no_horizontal_overflow(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-success-#{width}.png"))
+
+      visit new_reaction_path
+      assert_no_selector "[role=status]"
+    end
+  end
+
+  test "all zero submission shows errors preserves inputs and can be corrected on mobile and desktop" do
+    log_in
+
+    [ 390, 1280 ].zip(@classrooms).each do |width, classroom|
+      page.driver.browser.manage.window.resize_to(width, 844)
+      select classroom.name, from: "担当クラス"
+
+      assert_no_difference "Reaction.count" do
+        click_button "登録"
+        assert_selector ".alert.alert-danger[role=alert]", text: "リアクション人数を1人以上入力してください"
+      end
+
+      assert_select "担当クラス", selected: classroom.name
+      assert_field "美味しそうに食べていた", with: "0"
+      assert_field "普通・どちらでもない", with: "0"
+      assert_field "苦手そうに食べていた", with: "0"
+      assert_no_horizontal_overflow(width)
+      assert_reaction_count_layout(width)
+      assert_registration_layout(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-error-#{width}.png"))
+
+      fill_in "美味しそうに食べていた", with: "2"
+      assert_difference "Reaction.count", 1 do
+        click_button "登録"
+        assert_selector "[role=status]", text: "登録が成功しました"
+      end
+      visit new_reaction_path
+    end
+  end
+
+  test "duplicate submission displays registered guidance without changing the existing counts" do
+    reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+    original_attributes = reaction.attributes
+    log_in
+    select @classrooms.first.name, from: "担当クラス"
+    fill_in "美味しそうに食べていた", with: "12"
+
+    assert_no_difference "Reaction.count" do
+      click_button "登録"
+      assert_selector "[role=alert]", text: "このクラスの本日のリアクションは登録済みです。"
+    end
+
+    assert_equal original_attributes, reaction.reload.attributes
+    assert_field "美味しそうに食べていた", with: "12"
+    assert_select "担当クラス", selected: @classrooms.first.name
+    assert_no_selector "[role=status]"
+  end
+
+  test "decimal input rejected by the server retains the entered counts on mobile and desktop" do
+    log_in
+    select @classrooms.first.name, from: "担当クラス"
+    fill_in "美味しそうに食べていた", with: "1.5"
+    fill_in "普通・どちらでもない", with: "3"
+    fill_in "苦手そうに食べていた", with: "1"
+
+    # ブラウザのstep検証を省略し、サーバーのバリデーションと再表示を確認する。
+    page.execute_script("document.querySelector('main form').noValidate = true")
+    assert_no_difference "Reaction.count" do
+      click_button "登録"
+      assert_selector ".alert.alert-danger[role=alert]", text: "Positive count must be an integer"
+    end
+
+    [ 390, 1280 ].each do |width|
+      page.driver.browser.manage.window.resize_to(width, 844)
+      assert_select "担当クラス", selected: @classrooms.first.name
+      assert_field "美味しそうに食べていた", with: "1.5"
+      assert_field "普通・どちらでもない", with: "3"
+      assert_field "苦手そうに食べていた", with: "1"
+      assert_no_horizontal_overflow(width)
+      assert_reaction_count_layout(width)
+      assert_registration_layout(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-count-error-#{width}.png"))
+    end
+  end
+
+  test "a stale form shows the latest dish and requires new input before registration" do
+    log_in
+    select @classrooms.first.name, from: "担当クラス"
+    fill_in "美味しそうに食べていた", with: "12"
+    @feedback_target.update!(dish: Dish.create!(name: "味噌汁", category: :soup))
+
+    assert_no_difference "Reaction.count" do
+      click_button "登録"
+      assert_selector "[role=alert]", text: "対象日または対象料理が変更されています。最新の情報を確認し、再入力してください。"
+    end
+
+    assert_selector ".reaction-entry-dish", text: "対象料理：味噌汁（汁物）"
+    assert_select "担当クラス", selected: "担当クラス"
+    assert_field "美味しそうに食べていた", with: "0"
+    assert_field "普通・どちらでもない", with: "0"
+    assert_field "苦手そうに食べていた", with: "0"
+    assert_no_horizontal_overflow(390)
+    page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-stale-390.png"))
+
+    select @classrooms.first.name, from: "担当クラス"
+    fill_in "普通・どちらでもない", with: "2"
+    assert_difference "Reaction.count", 1 do
+      click_button "登録"
+      assert_selector "[role=status]", text: "登録が成功しました"
+    end
+    assert_equal @feedback_target, Reaction.last.feedback_target
+  end
+
   private
+
+  def log_in
+    visit kindergarten_login_path
+    fill_in "ログインID", with: @user.login_id
+    fill_in "パスワード", with: "kindergarten-password"
+    click_button "ログイン"
+    assert_current_path new_reaction_path
+  end
+
+  def assert_no_horizontal_overflow(width)
+    assert page.evaluate_script(<<~JS), "Reaction entry overflows at #{width}px"
+      document.documentElement.scrollWidth <= window.innerWidth &&
+      [...document.querySelectorAll('main .alert, main form, main select, main input[type=number], main input[type=submit]')].every(element => {
+        const rect = element.getBoundingClientRect();
+        return rect.left >= 0 && rect.right <= window.innerWidth && element.scrollWidth <= element.clientWidth;
+      })
+    JS
+  end
+
+  def assert_registration_layout(width)
+    assert_selector ".reaction-entry-constraint", text: "入力制約：0以上の整数"
+    assert page.evaluate_script(<<~JS), "Registration button or constraint text differs from Figma at #{width}px"
+      (() => {
+        const constraint = document.querySelector('.reaction-entry-constraint');
+        const constraintStyle = getComputedStyle(constraint);
+        const constraintRect = constraint.getBoundingClientRect();
+        const lastInput = document.querySelector('#reaction_negative_count').getBoundingClientRect();
+        const button = document.querySelector('.reaction-entry-submit');
+        const style = getComputedStyle(button);
+        const rect = button.getBoundingClientRect();
+        return Math.abs(rect.width - 326) <= 1 && Math.abs(rect.height - 42) <= 1 &&
+          Math.abs((rect.left + rect.right) / 2 - document.documentElement.clientWidth / 2) <= 1 &&
+          Math.abs(constraintRect.top - lastInput.bottom - 14) <= 1 &&
+          Math.abs(rect.top - constraintRect.bottom - 40) <= 1 &&
+          constraintStyle.fontSize === '10px' && constraintStyle.fontWeight === '400' &&
+          constraintStyle.color === 'rgb(31, 31, 31)' && constraintStyle.fontFamily.includes('Noto Sans JP') &&
+          style.backgroundColor === 'rgb(237, 237, 237)' && style.color === 'rgb(31, 31, 31)' &&
+          style.fontSize === '13px' && style.fontWeight === '400' &&
+          style.fontFamily.includes('Noto Sans JP') && style.textDecorationLine === 'none' &&
+          ['Top', 'Right', 'Bottom', 'Left'].every(side =>
+            style['border' + side + 'Width'] === '1px' && style['border' + side + 'Style'] === 'solid' &&
+            style['border' + side + 'Color'] === 'rgb(31, 31, 31)') &&
+          ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].every(corner => style['border' + corner + 'Radius'] === '0px');
+      })()
+    JS
+  end
 
   def assert_noto_sans_jp_loaded
     assert_selector "head link[href*='fonts.googleapis.com']", visible: :all, wait: 10 do
@@ -197,7 +380,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
           const style = getComputedStyle(input);
           const labelStyle = getComputedStyle(label);
           const matches = Math.abs(rect.width - 326) <= 1 && Math.abs(rect.height - 40) <= 1 &&
-            Math.abs((rect.left + rect.right) / 2 - window.innerWidth / 2) <= 1 &&
+            Math.abs((rect.left + rect.right) / 2 - document.documentElement.clientWidth / 2) <= 1 &&
             Math.abs(rect.top - previousRect.bottom - 12) <= 1 &&
             rect.left >= 0 && rect.right <= window.innerWidth &&
             labelRect.left >= rect.left && labelRect.right <= rect.left + parseFloat(style.paddingLeft) &&

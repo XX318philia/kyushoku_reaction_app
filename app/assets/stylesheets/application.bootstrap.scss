@@ -165,7 +165,7 @@
 }
 
 .reaction-entry {
-  padding: 64px 32px 48px;
+  padding: 64px clamp(16px, calc((100% - 326px) / 2), 32px) 48px;
   background-color: #fff;
   color: #1f1f1f;
   font-family: "Noto Sans JP", sans-serif;
@@ -214,6 +214,24 @@
       padding-right: 11px;
       padding-left: 172px;
     }
+  }
+
+  .reaction-entry-constraint {
+    margin: 14px 0 40px;
+    font-size: 10px;
+  }
+
+  .reaction-entry-submit {
+    height: 42px;
+    padding: 9px 11px;
+    border: 1px solid #1f1f1f;
+    border-radius: 0;
+    background-color: #ededed;
+    color: inherit;
+    font-size: 13px;
+    font-weight: normal;
+    line-height: 21px;
+    text-decoration: none;
   }
 }
 
