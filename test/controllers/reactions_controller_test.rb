@@ -33,7 +33,11 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
         assert_select "option[value=?]", classroom.id, text: classroom.name, count: 1
       end
     end
-    assert_select "select#classroom_id + .reaction-entry-count + .reaction-entry-count + .reaction-entry-count", count: 1
+    assert_select "main form[action=?][method=get]", new_reaction_path, count: 1 do
+      assert_select "select#classroom_id", count: 1
+      assert_select "input[type=submit][value=決定]", count: 1
+      assert_select "input[type=number], input[name=displayed_target]", count: 0
+    end
     assert_select "main input[type=number]", count: 3
     { positive_count: "美味しそうに食べていた", neutral_count: "普通・どちらでもない", negative_count: "苦手そうに食べていた" }.each do |attribute, label|
       assert_select ".reaction-entry-count" do
@@ -42,7 +46,12 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
           "reaction[#{attribute}]", count: 1
       end
     end
-    assert_select "main form[action=?][method=post]", reactions_path, count: 1
+    assert_select "main form[action=?][method=post]", reactions_path, count: 1 do
+      assert_select "select, input[name=_method]", count: 0
+      assert_select "input#loaded_classroom_id[type=hidden][name=classroom_id]", count: 1 do |fields|
+        assert_empty fields.first["value"].to_s
+      end
+    end
     assert_select "input[name=displayed_target][type=hidden]", count: 1
     assert_select "input[type=submit][value=登録]", count: 1
     assert_select ".reaction-entry-constraint", text: "入力制約：0以上の整数"
@@ -57,6 +66,84 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_select "main p", text: "対象料理：カレー（#{label}）", count: 1
+    end
+  end
+
+  test "loads each saved count including zeros for the selected class using a POST registration form" do
+    reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 1, neutral_count: 2, negative_count: 0)
+    Reaction.create!(classroom: @classrooms.last, feedback_target: @feedback_target,
+      positive_count: 9, neutral_count: 8, negative_count: 7)
+
+    [ [ 0, 1, 2 ], [ 2, 0, 1 ], [ 1, 2, 0 ] ].each do |counts|
+      reaction.update!(%i[ positive_count neutral_count negative_count ].zip(counts).to_h)
+      original_attributes = reaction.attributes
+
+      assert_no_difference "Reaction.count" do
+        get new_reaction_url, params: { classroom_id: @classrooms.first.id }
+      end
+
+      assert_response :success
+      assert_reaction_counts(counts)
+      assert_select "select#classroom_id option[selected][value=?]", @classrooms.first.id
+      assert_select "main form[action=?][method=post]", reactions_path, count: 1 do
+        assert_select "input#loaded_classroom_id[value=?]", @classrooms.first.id
+        assert_select "input[name=_method]", count: 0
+        assert_select "input[type=submit][value=登録]", count: 1
+      end
+      assert_select "h2", text: "入力フォーム"
+      assert_equal original_attributes, reaction.reload.attributes
+    end
+  end
+
+  test "shows zeros for an unregistered class and for an unselected class despite other saved reactions" do
+    Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+
+    [ @classrooms.last.id, nil, "" ].each do |id|
+      get new_reaction_url, params: { classroom_id: id }
+
+      assert_response :success
+      assert_reaction_counts([ 0, 0, 0 ])
+      assert_select "input#loaded_classroom_id", count: 1 do |fields|
+        assert_equal id.to_s, fields.first["value"].to_s
+      end
+    end
+  end
+
+  test "does not load other kindergarten reactions or malformed and nonexistent classroom ids" do
+    other_kindergarten = Kindergarten.create!(name: "ひまわり幼稚園")
+    other_classroom = other_kindergarten.classrooms.create!(name: "他園のクラス")
+    Reaction.create!(classroom: other_classroom, feedback_target: @feedback_target,
+      positive_count: 9, neutral_count: 8, negative_count: 7)
+    Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+
+    [ other_classroom.id, Classroom.maximum(:id) + 1, "invalid", "#{@classrooms.first.id}invalid", "1.5",
+      [ @classrooms.first.id ], { id: @classrooms.first.id } ].each do |id|
+      get new_reaction_url, params: { classroom_id: id }
+
+      assert_response :success
+      assert_reaction_counts([ 0, 0, 0 ])
+      assert_select "select#classroom_id option[selected]", count: 0
+      assert_select "input#loaded_classroom_id", count: 1 do |fields|
+        assert_empty fields.first["value"].to_s
+      end
+    end
+  end
+
+  test "only loads today's reaction even when past or future targets and counts are supplied" do
+    [ Date.yesterday, Date.tomorrow ].each do |date|
+      target = FeedbackTarget.create!(dish: @dish, target_date: date)
+      reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: target,
+        positive_count: 9, neutral_count: 8, negative_count: 7)
+
+      get new_reaction_url, params: { classroom_id: @classrooms.first.id, target_date: date,
+        feedback_target_id: target.id, reaction: { id: reaction.id, positive_count: 9, neutral_count: 8, negative_count: 7 } }
+
+      assert_response :success
+      assert_reaction_counts([ 0, 0, 0 ])
+      assert_select "time[datetime=?]", Date.current.iso8601
     end
   end
 
@@ -193,6 +280,9 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_no_difference "Reaction.count" do
       get new_reaction_url
+      get new_reaction_url, params: { classroom_id: @classrooms.first.id, reaction: {
+        positive_count: 10, neutral_count: 10, negative_count: 10 } }
+      assert_reaction_counts([ 2, 1, 0 ])
       get new_reaction_url, params: { classroom_id: @classrooms.last.id, reaction: {
         classroom_id: @classrooms.first.id, feedback_target_id: @feedback_target.id,
         positive_count: 10, neutral_count: 10, negative_count: 10 } }
@@ -371,6 +461,8 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
       positive_count: 2, neutral_count: 1, negative_count: 0)
     original_attributes = reaction.attributes
+    get new_reaction_url, params: { classroom_id: @classrooms.first.id }
+    assert_reaction_counts([ 2, 1, 0 ])
 
     assert_no_difference "Reaction.count" do
       post reactions_url, params: registration_params
@@ -453,6 +545,12 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def assert_reaction_counts(counts)
+    %i[ positive_count neutral_count negative_count ].zip(counts).each do |attribute, count|
+      assert_select "input#reaction_#{attribute}[value=?]", count.to_s, count: 1
+    end
+  end
 
   def registration_params
     { classroom_id: @classrooms.first.id, displayed_target: @displayed_target,

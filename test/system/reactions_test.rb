@@ -58,7 +58,9 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         assert_field "普通・どちらでもない", with: "3"
         assert_field "苦手そうに食べていた", with: "1"
         assert_current_path new_reaction_path
+        assert_selector "main form[action='#{new_reaction_path}'][method=get]"
         assert_selector "main form[action='#{reactions_path}'][method=post]"
+        assert_button "決定"
         assert_button "登録"
         assert page.evaluate_script(<<~JS), "Reaction entry overflows the viewport at #{width}px"
           document.documentElement.scrollWidth <= window.innerWidth &&
@@ -70,7 +72,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         assert_reaction_count_layout(width)
         assert_registration_layout(width)
         assert page.evaluate_script("Math.abs(document.querySelector('footer').getBoundingClientRect().bottom - window.innerHeight) <= 1")
-        page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-#{width}.png"))
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue33-reactions-#{width}.png"))
       end
 
       visit root_path
@@ -100,6 +102,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       page.driver.browser.manage.window.resize_to(width, 844)
       assert_selector ".reaction-entry-dish", text: "鶏肉とたっぷり野菜のやさしいクリーム煮（フルーツ・デザート）"
       select @classrooms.first.name, from: "担当クラス"
+      click_button "決定"
       assert_select "担当クラス", selected: @classrooms.first.name
       assert page.evaluate_script("document.documentElement.scrollWidth <= window.innerWidth")
       assert page.evaluate_script(<<~JS), "The class selector overlaps a wrapped dish name"
@@ -108,8 +111,99 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       JS
       assert_reaction_count_layout(width)
       assert_registration_layout(width)
-      page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-long-#{width}.png"))
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue33-reactions-long-#{width}.png"))
     end
+  end
+
+  test "loads saved counts on decision and discards unsaved input when another class is loaded" do
+    Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 0, neutral_count: 3, negative_count: 1)
+    Reaction.create!(classroom: @classrooms.last, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 0, negative_count: 0)
+    unregistered_classroom = @kindergarten.classrooms.create!(name: "年長")
+    original_attributes = Reaction.order(:id).map(&:attributes)
+    log_in
+
+    assert_no_difference "Reaction.count" do
+      [ 390, 1280 ].each do |width|
+        page.driver.browser.manage.window.resize_to(width, 844)
+        select @classrooms.first.name, from: "担当クラス"
+        click_button "決定"
+        assert_field "美味しそうに食べていた", with: "0"
+        assert_field "普通・どちらでもない", with: "3"
+        assert_field "苦手そうに食べていた", with: "1"
+        assert_selector "main h2", text: "入力フォーム"
+        assert_button "登録"
+        assert_no_horizontal_overflow(width)
+        assert_reaction_count_layout(width)
+        assert_registration_layout(width)
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue33-reactions-saved-#{width}.png"))
+
+        select @classrooms.last.name, from: "担当クラス"
+        assert_field "美味しそうに食べていた", with: "0"
+        assert_field "普通・どちらでもない", with: "3"
+        assert_field "苦手そうに食べていた", with: "1"
+        assert_selector "input#loaded_classroom_id[value='#{@classrooms.first.id}']", visible: :all
+        fill_in "美味しそうに食べていた", with: "12"
+        click_button "決定"
+        assert_field "美味しそうに食べていた", with: "2"
+        assert_field "普通・どちらでもない", with: "0"
+        assert_field "苦手そうに食べていた", with: "0"
+
+        fill_in "苦手そうに食べていた", with: "5"
+        select unregistered_classroom.name, from: "担当クラス"
+        click_button "決定"
+        assert_field "美味しそうに食べていた", with: "0"
+        assert_field "普通・どちらでもない", with: "0"
+        assert_field "苦手そうに食べていた", with: "0"
+
+        fill_in "普通・どちらでもない", with: "4"
+        select "担当クラス", from: "担当クラス"
+        click_button "決定"
+        assert_select "担当クラス", selected: "担当クラス"
+        assert_field "美味しそうに食べていた", with: "0"
+        assert_field "普通・どちらでもない", with: "0"
+        assert_field "苦手そうに食べていた", with: "0"
+      end
+    end
+
+    assert_equal original_attributes, Reaction.order(:id).map(&:attributes)
+  end
+
+  test "registers only for the loaded class when another class is selected without a decision" do
+    log_in
+
+    [ 390, 1280 ].zip(@classrooms).each do |width, classroom|
+      page.driver.browser.manage.window.resize_to(width, 844)
+      select classroom.name, from: "担当クラス"
+      click_button "決定"
+      assert_select "担当クラス", selected: classroom.name
+      fill_in "美味しそうに食べていた", with: "4"
+      select (@classrooms - [ classroom ]).first.name, from: "担当クラス"
+
+      assert_difference "Reaction.count", 1 do
+        click_button "登録"
+        assert_selector "[role=status]", text: "登録が成功しました"
+      end
+
+      reaction = Reaction.find_by!(classroom: classroom, feedback_target: @feedback_target)
+      assert_equal [ 4, 0, 0 ], reaction.attributes.values_at("positive_count", "neutral_count", "negative_count")
+      visit new_reaction_path
+    end
+  end
+
+  test "selecting a class without loading it cannot register for that class" do
+    log_in
+    select @classrooms.first.name, from: "担当クラス"
+    fill_in "美味しそうに食べていた", with: "4"
+
+    assert_no_difference "Reaction.count" do
+      click_button "登録"
+      assert_selector "[role=alert]", text: "担当クラスを選択してください。"
+    end
+
+    assert_select "担当クラス", selected: "担当クラス"
+    assert_field "美味しそうに食べていた", with: "4"
   end
 
   test "unset guidance wraps on mobile and desktop and refreshing after target setting restores the normal page" do
@@ -181,6 +275,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     [ 390, 1280 ].zip(@classrooms).each do |width, classroom|
       page.driver.browser.manage.window.resize_to(width, 844)
       select classroom.name, from: "担当クラス"
+      click_button "決定"
       fill_in "美味しそうに食べていた", with: "12"
       fill_in "普通・どちらでもない", with: "3"
       fill_in "苦手そうに食べていた", with: "1"
@@ -210,6 +305,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     [ 390, 1280 ].zip(@classrooms).each do |width, classroom|
       page.driver.browser.manage.window.resize_to(width, 844)
       select classroom.name, from: "担当クラス"
+      click_button "決定"
 
       assert_no_difference "Reaction.count" do
         click_button "登録"
@@ -240,6 +336,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     original_attributes = reaction.attributes
     log_in
     select @classrooms.first.name, from: "担当クラス"
+    click_button "決定"
     fill_in "美味しそうに食べていた", with: "12"
 
     assert_no_difference "Reaction.count" do
@@ -256,12 +353,13 @@ class ReactionsTest < ActionDispatch::SystemTestCase
   test "decimal input rejected by the server retains the entered counts on mobile and desktop" do
     log_in
     select @classrooms.first.name, from: "担当クラス"
+    click_button "決定"
     fill_in "美味しそうに食べていた", with: "1.5"
     fill_in "普通・どちらでもない", with: "3"
     fill_in "苦手そうに食べていた", with: "1"
 
     # ブラウザのstep検証を省略し、サーバーのバリデーションと再表示を確認する。
-    page.execute_script("document.querySelector('main form').noValidate = true")
+    page.execute_script("document.querySelector('main form[method=post]').noValidate = true")
     assert_no_difference "Reaction.count" do
       click_button "登録"
       assert_selector ".alert.alert-danger[role=alert]", text: "Positive count must be an integer"
@@ -283,6 +381,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
   test "a stale form shows the latest dish and requires new input before registration" do
     log_in
     select @classrooms.first.name, from: "担当クラス"
+    click_button "決定"
     fill_in "美味しそうに食べていた", with: "12"
     @feedback_target.update!(dish: Dish.create!(name: "味噌汁", category: :soup))
 
@@ -300,6 +399,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-stale-390.png"))
 
     select @classrooms.first.name, from: "担当クラス"
+    click_button "決定"
     fill_in "普通・どちらでもない", with: "2"
     assert_difference "Reaction.count", 1 do
       click_button "登録"
@@ -369,6 +469,25 @@ class ReactionsTest < ActionDispatch::SystemTestCase
   end
 
   def assert_reaction_count_layout(width)
+    assert page.evaluate_script(<<~JS), "Class selector and decision button differ from Figma at #{width}px"
+      (() => {
+        const select = document.querySelector('#classroom_id');
+        const selectRect = select.getBoundingClientRect();
+        const button = document.querySelector('.reaction-entry-load');
+        const rect = button.getBoundingClientRect();
+        const style = getComputedStyle(button);
+        return Math.abs(selectRect.width - 181) <= 1 && Math.abs(selectRect.height - 40) <= 1 &&
+          Math.abs(rect.width - 135) <= 1 && Math.abs(rect.height - 40) <= 1 &&
+          Math.abs(rect.left - selectRect.right - 10) <= 1 && Math.abs(rect.top - selectRect.top) <= 1 &&
+          style.backgroundColor === 'rgb(237, 237, 237)' && style.color === 'rgb(31, 31, 31)' &&
+          style.fontSize === '13px' && style.fontWeight === '400' &&
+          style.fontFamily.includes('Noto Sans JP') && style.textDecorationLine === 'none' &&
+          ['Top', 'Right', 'Bottom', 'Left'].every(side =>
+            style['border' + side + 'Width'] === '1px' && style['border' + side + 'Style'] === 'solid' &&
+            style['border' + side + 'Color'] === 'rgb(31, 31, 31)') &&
+          ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].every(corner => style['border' + corner + 'Radius'] === '0px');
+      })()
+    JS
     assert page.evaluate_script(<<~JS), "Reaction count inputs differ from the design or overlap at #{width}px"
       (() => {
         let previousRect = document.querySelector('#classroom_id').getBoundingClientRect();
