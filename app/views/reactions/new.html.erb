@@ -7,20 +7,42 @@
   <div class="reaction-entry-content mx-auto">
     <h2 class="text-center">入力フォーム</h2>
 
+    <% if flash[:notice] %>
+      <div class="alert alert-success" role="status"><%= flash[:notice] %></div>
+    <% end %>
+
+    <% if @reaction.errors.any? %>
+      <div class="alert alert-danger" role="alert">
+        <ul class="mb-0">
+          <% @reaction.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
     <p class="reaction-entry-date">対象日：<time datetime="<%= @target_date.iso8601 %>"><%= @target_date.strftime("%Y年%-m月%-d日") %></time></p>
 
     <% if @dish %>
       <% category_labels = { "main_dish" => "主菜", "side_dish" => "副菜", "soup" => "汁物", "fruit_or_dessert" => "フルーツ・デザート" } %>
       <p class="reaction-entry-dish">対象料理：<%= @dish.name %>（<%= category_labels.fetch(@dish.category) %>）</p>
 
-      <%= label_tag :classroom_id, "担当クラス", class: "visually-hidden" %>
-      <%= select_tag :classroom_id, options_from_collection_for_select(@classrooms, :id, :name), prompt: "担当クラス", class: "form-select" %>
+      <%= form_with model: @reaction, url: reactions_path do |form| %>
+        <%= hidden_field_tag :displayed_target, @displayed_target %>
 
-      <% { positive_count: "美味しそうに食べていた", neutral_count: "普通・どちらでもない", negative_count: "苦手そうに食べていた" }.each do |attribute, label| %>
-        <div class="reaction-entry-count">
-          <%= label_tag "reaction_#{attribute}", label %>
-          <%= number_field_tag "reaction[#{attribute}]", 0, id: "reaction_#{attribute}", min: 0, step: 1, required: true, class: "form-control" %>
-        </div>
+        <%= label_tag :classroom_id, "担当クラス", class: "visually-hidden" %>
+        <%= select_tag :classroom_id, options_from_collection_for_select(@classrooms, :id, :name, @selected_classroom&.id), prompt: "担当クラス", class: "form-select" %>
+
+        <% { positive_count: "美味しそうに食べていた", neutral_count: "普通・どちらでもない", negative_count: "苦手そうに食べていた" }.each do |attribute, label| %>
+          <div class="reaction-entry-count">
+            <%= form.label attribute, label %>
+            <%= form.number_field attribute, value: @reaction.public_send("#{attribute}_before_type_cast"), min: 0, step: 1, required: true, class: "form-control" %>
+          </div>
+        <% end %>
+
+        <p class="reaction-entry-constraint">入力制約：0以上の整数</p>
+
+        <%= form.submit "登録", class: "btn w-100 reaction-entry-submit" %>
       <% end %>
     <% else %>
       <div class="reaction-entry-unset-notice">
