@@ -19,6 +19,7 @@ Rails.application.routes.draw do
   get "center/login", to: "center_sessions#new", as: :center_login
   post "center/login", to: "center_sessions#create"
   delete "center/logout", to: "center_sessions#destroy", as: :center_logout
+  get "center/reaction_results", to: "center_reaction_results#index", as: :center_reaction_results
 
   resources :dishes, only: [ :new, :create ]
   resources :feedback_targets, only: [ :new, :create ]

@@ -7,7 +7,7 @@ class CenterSessionsController < ApplicationController
 
     if user&.center?
       log_in(user)
-      redirect_to root_path, status: :see_other
+      redirect_to center_reaction_results_path, status: :see_other
     else
       flash.now[:alert] = "ログインIDまたはパスワードが正しくありません"
       render :new, status: :unprocessable_content

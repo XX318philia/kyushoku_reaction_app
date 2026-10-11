@@ -389,7 +389,137 @@
   }
 }
 
+.center-reaction-results {
+  padding: 22px 40px 48px;
+  background-color: #fff;
+  color: #1f1f1f;
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 22px;
+  font-weight: normal;
+  line-height: 29px;
+
+  h2 {
+    margin: 0 0 13px;
+    color: #000;
+    font-size: 28px;
+    font-weight: normal;
+    line-height: 41px;
+  }
+
+  .center-reaction-results-date,
+  .center-reaction-results-dish {
+    margin: 0 0 8px;
+  }
+
+  .center-reaction-results-count,
+  .center-reaction-results-total {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    min-height: 74px;
+    margin: 0;
+    padding: 11px 15px 8px;
+    border: 1px solid #1f1f1f;
+    background-color: #fff;
+  }
+
+  .center-reaction-results-label {
+    margin-right: 2px;
+    font-size: 17px;
+    line-height: 20px;
+  }
+
+  .center-reaction-results-count--positive {
+    gap: 6px;
+  }
+
+  .center-reaction-results-value {
+    align-self: flex-end;
+    width: 100%;
+    font-size: 20px;
+    line-height: 27px;
+    text-align: center;
+  }
+
+  .center-reaction-results-notes {
+    margin: 9px 0 0;
+    color: #000;
+    font-size: 11px;
+    line-height: normal;
+  }
+}
+
+.center-reaction-results-content {
+  width: 100%;
+  max-width: 880px;
+  overflow-wrap: anywhere;
+}
+
+.center-reaction-results-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px 30px;
+  max-width: 870px;
+}
+
+.center-reaction-results--unset {
+  padding: 27px 24px 48px;
+
+  .center-reaction-results-content {
+    max-width: 768px;
+  }
+
+  h2 {
+    margin-bottom: 20px;
+  }
+
+  .center-reaction-results-date {
+    margin: 0 0 42px;
+  }
+}
+
+.center-reaction-results-unset-notice {
+  color: #000;
+  font-size: 20px;
+  line-height: normal;
+
+  p {
+    margin: 0;
+  }
+
+  p + p {
+    margin-top: 20px;
+  }
+}
+
 @include media-breakpoint-up(md) {
+  .center-reaction-results-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .center-reaction-results {
+    .center-reaction-results-count--positive .center-reaction-results-value {
+      width: 198px;
+      margin-right: 4px;
+    }
+
+    .center-reaction-results-count--neutral .center-reaction-results-value {
+      width: 186px;
+      margin-right: 2px;
+    }
+
+    .center-reaction-results-count--negative .center-reaction-results-value {
+      width: 197px;
+      margin-right: 2px;
+    }
+
+    .center-reaction-results-total .center-reaction-results-value {
+      width: 184px;
+      margin-right: 28px;
+    }
+  }
+
   .shared-header--before-login {
     min-height: 111px;
 
