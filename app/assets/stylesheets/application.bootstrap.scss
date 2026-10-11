@@ -283,6 +283,105 @@
   }
 }
 
+.reaction-results {
+  padding: 56px clamp(16px, calc((100% - 326px) / 2), 32px) 48px;
+  background-color: #fff;
+  color: #1f1f1f;
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 16px;
+  font-weight: normal;
+  line-height: 20px;
+
+  h2 {
+    margin: 0 0 19px;
+    color: #000;
+    font-size: 22px;
+    font-weight: normal;
+    line-height: 32px;
+  }
+
+  .reaction-results-date {
+    margin: 0 0 11px;
+  }
+
+  .reaction-results-dish {
+    margin: 0 0 12px;
+  }
+
+  .reaction-results-count,
+  .reaction-results-total {
+    display: flex;
+    align-items: center;
+    padding: 12px 11px;
+    border: 1px solid #1f1f1f;
+    font-size: 13px;
+  }
+
+  .reaction-results-count {
+    min-height: 48px;
+    margin: 0 0 12px;
+    background-color: #fff;
+  }
+
+  .reaction-results-total {
+    min-height: 44px;
+    margin: 20px 0 0;
+    padding: 11px;
+    background-color: #ededed;
+  }
+
+  .reaction-results-notes {
+    min-height: 79px;
+    margin-top: 11px;
+    color: #000;
+    font-size: 11px;
+    line-height: normal;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  .reaction-results-constraint {
+    width: 100%;
+    margin: 38px 0 0 -1px;
+    font-size: 10px;
+  }
+}
+
+.reaction-results-content {
+  width: 100%;
+  max-width: 326px;
+  overflow-wrap: anywhere;
+}
+
+.reaction-results--unset {
+  h2 {
+    margin-bottom: 35px;
+    color: #1f1f1f;
+  }
+
+  .reaction-results-date {
+    margin: 0 0 37px 3px;
+  }
+}
+
+.reaction-results-unset-notice {
+  margin-left: 3px;
+  max-width: 319px;
+  color: #000;
+  font-size: 15px;
+  line-height: normal;
+
+  p {
+    margin: 0;
+  }
+
+  p + p {
+    margin-top: 1lh;
+  }
+}
+
 @include media-breakpoint-up(md) {
   .shared-header--before-login {
     min-height: 111px;

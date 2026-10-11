@@ -1,6 +1,11 @@
 class ReactionsController < ApplicationController
   before_action :require_kindergarten_user
-  before_action :load_entry
+  before_action :load_target
+  before_action :load_entry, only: [ :new, :create ]
+
+  def index
+    @reaction_summary = @feedback_target&.reaction_summary
+  end
 
   def new
     @selected_classroom = @classrooms.find { |classroom| classroom.id.to_s == params[:classroom_id] }
@@ -45,7 +50,7 @@ class ReactionsController < ApplicationController
     updating = @reaction.persisted?
     if @reaction.save
       notice = updating ? "登録内容を更新しました" : "登録が成功しました"
-      redirect_to new_reaction_path, notice: notice, status: :see_other
+      redirect_to reactions_path, notice: notice, status: :see_other
     elsif @reaction.errors.of_kind?(:classroom_id, :taken)
       render_already_registered
     else
@@ -57,10 +62,13 @@ class ReactionsController < ApplicationController
 
   private
 
-  def load_entry
+  def load_target
     @target_date = Date.current
     @feedback_target = FeedbackTarget.find_by(target_date: @target_date)
     @dish = @feedback_target&.dish
+  end
+
+  def load_entry
     @classrooms = current_user.kindergarten.classrooms
     @displayed_target = Rails.application.message_verifier(:reaction_entry).generate(target_snapshot) if @feedback_target
   end

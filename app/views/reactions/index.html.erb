@@ -1,0 +1,39 @@
+<% content_for :title, "本日の集計結果 | 給食リアクション" %>
+<% content_for :head do %>
+  <%= stylesheet_link_tag "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&display=swap", "data-turbo-track": "dynamic" %>
+<% end %>
+
+<main class="reaction-results<%= " reaction-results--unset" unless @feedback_target %>">
+  <div class="reaction-results-content mx-auto">
+    <h2 class="text-center">本日の集計結果</h2>
+
+    <% if flash[:notice] %>
+      <div class="alert alert-success" role="status"><%= flash[:notice] %></div>
+    <% end %>
+
+    <p class="reaction-results-date">対象日：<time datetime="<%= @target_date.iso8601 %>"><%= @target_date.strftime("%Y年%-m月%-d日") %></time></p>
+
+    <% if @feedback_target %>
+      <p class="reaction-results-dish">対象料理：<%= @dish.name %></p>
+
+      <% { positive: "美味しそうに食べていた", neutral: "普通・どちらでもない", negative: "苦手そうに食べていた" }.each do |type, label| %>
+        <% percentage = @reaction_summary.fetch(:"#{type}_percentage") %>
+        <p class="reaction-results-count"><%= label %>　<%= @reaction_summary.fetch(:"#{type}_count") %>人 / <%= percentage.nil? ? "-" : number_to_percentage(percentage, precision: 1) %></p>
+      <% end %>
+
+      <p class="reaction-results-total">観察対象人数：<%= @reaction_summary.fetch(:total_count) %>人</p>
+
+      <div class="reaction-results-notes">
+        <p>※ 集計結果は自動集計ですが、ページを再読みしないと更新されません。</p>
+        <p>※ 3種類の割合の表示値を合計しても100.0%にならない場合がありますが、これは計算方法の不整合ではありません。</p>
+      </div>
+
+      <p class="reaction-results-constraint">※ 当日分のみ表示（過去日閲覧はMVP対象外）</p>
+    <% else %>
+      <div class="reaction-results-unset-notice">
+        <p>本日のフィードバック対象料理はまだ設定されていません。</p>
+        <p>給食センター側で設定されると、本日の集計結果を確認できるようになります。</p>
+      </div>
+    <% end %>
+  </div>
+</main>

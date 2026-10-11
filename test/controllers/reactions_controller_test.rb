@@ -314,7 +314,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :see_other
-    assert_redirected_to new_reaction_url
+    assert_redirected_to reactions_url
     reaction = Reaction.last
     assert_equal @classrooms.first, reaction.classroom
     assert_equal @feedback_target, reaction.feedback_target
@@ -324,8 +324,9 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_response :success
     assert_select "[role=status]", text: "登録が成功しました"
-    assert_select "select#classroom_id option[selected]", count: 0
-    assert_select "main input[type=number][value='0']", count: 3
+    assert_select "h2", text: "本日の集計結果"
+    assert_select ".reaction-results-count", text: "美味しそうに食べていた　12人 / 75.0%"
+    assert_select "main input, main select", count: 0
 
     get new_reaction_url
     assert_select "[role=status]", count: 0
@@ -337,7 +338,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
         positive_count: "0", neutral_count: "1", negative_count: "0" })
     end
 
-    assert_redirected_to new_reaction_url
+    assert_redirected_to reactions_url
     assert_equal [ 0, 1, 0 ], Reaction.last.attributes.values_at("positive_count", "neutral_count", "negative_count")
   end
 
@@ -417,7 +418,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
           positive_count: "12", neutral_count: "3", negative_count: "1" })
     end
 
-    assert_redirected_to new_reaction_url
+    assert_redirected_to reactions_url
     reaction = Reaction.last
     assert_equal @classrooms.first, reaction.classroom
     assert_equal @feedback_target, reaction.feedback_target
@@ -506,7 +507,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :see_other
-    assert_redirected_to new_reaction_url
+    assert_redirected_to reactions_url
     assert_equal "登録内容を更新しました", flash[:notice]
     assert_equal [ 12, 3, 1 ], reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
     assert_equal original_id, reaction.id
@@ -516,14 +517,16 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_response :success
     assert_select "[role=status]", text: "登録内容を更新しました"
-    assert_select "h2", text: "入力フォーム"
-    assert_select "input[type=submit][value=登録]", count: 1
-    assert_select "select#classroom_id option[selected]", count: 0
-    assert_select ".reaction-entry-loaded-classroom, input[name=displayed_reaction]", count: 0
-    assert_reaction_counts([ 0, 0, 0 ])
+    assert_select "h2", text: "本日の集計結果"
+    assert_select ".reaction-results-count", text: "美味しそうに食べていた　12人 / 75.0%"
+    assert_select "main input, main select", count: 0
 
     get new_reaction_url
     assert_select "[role=status]", count: 0
+    assert_select "h2", text: "入力フォーム"
+    assert_select "select#classroom_id option[selected]", count: 0
+    assert_select ".reaction-entry-loaded-classroom, input[name=displayed_reaction]", count: 0
+    assert_reaction_counts([ 0, 0, 0 ])
   end
 
   test "allows repeated editing and zeros in individual updated fields" do
@@ -535,7 +538,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
         post reactions_url, params: update_params.merge(reaction: %i[ positive_count neutral_count negative_count ].zip(counts).to_h)
       end
 
-      assert_redirected_to new_reaction_url
+      assert_redirected_to reactions_url
       assert_equal counts, reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
     end
   end
@@ -632,7 +635,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_no_difference "Reaction.count" do
       post reactions_url, params: corrected_params
     end
-    assert_redirected_to new_reaction_url
+    assert_redirected_to reactions_url
     assert_equal [ 12, 3, 1 ], reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
   end
 
@@ -652,7 +655,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
           feedback_target_id: past_target.id, created_at: Time.utc(2000, 1, 1), updated_at: Time.utc(2000, 1, 1)))
     end
 
-    assert_redirected_to new_reaction_url
+    assert_redirected_to reactions_url
     assert_equal [ 12, 3, 1 ], reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
     assert_equal original_id, reaction.id
     assert_equal original_created_at, reaction.created_at
@@ -783,7 +786,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       post reactions_url, params: registration_params
     end
 
-    assert_redirected_to new_reaction_url
+    assert_redirected_to reactions_url
     assert Reaction.exists?(classroom: @classrooms.first, feedback_target: @feedback_target)
   end
 
@@ -800,7 +803,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_difference "Reaction.count", 1 do
       post reactions_url, params: registration_params.merge(displayed_target: fresh_token)
     end
-    assert_redirected_to new_reaction_url
+    assert_redirected_to reactions_url
     assert_equal tomorrow_target, Reaction.last.feedback_target
   end
 
@@ -843,7 +846,152 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_competing_registration(validate: false)
   end
 
+  test "results include all kindergartens and classes for today's target regardless of supplied filters" do
+    Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+    Reaction.create!(classroom: @classrooms.last, feedback_target: @feedback_target,
+      positive_count: 1, neutral_count: 1, negative_count: 1)
+    other_classroom = Kindergarten.create!(name: "ひまわり幼稚園").classrooms.create!(name: "年少")
+    Reaction.create!(classroom: other_classroom, feedback_target: @feedback_target,
+      positive_count: 1, neutral_count: 0, negative_count: 2)
+    yesterday_target = FeedbackTarget.create!(dish: @dish, target_date: Date.yesterday)
+    tomorrow_dish = Dish.create!(name: "味噌汁", category: :soup)
+    tomorrow_target = FeedbackTarget.create!(dish: tomorrow_dish, target_date: Date.tomorrow)
+    [ yesterday_target, tomorrow_target ].each do |target|
+      Reaction.create!(classroom: @classrooms.first, feedback_target: target,
+        positive_count: 99, neutral_count: 99, negative_count: 99)
+    end
+
+    [ {}, { classroom_id: @classrooms.first.id }, { classroom_id: other_classroom.id },
+      { kindergarten_id: @kindergarten.id, target_date: Date.yesterday, feedback_target_id: yesterday_target.id },
+      { target_date: Date.tomorrow, dish_id: tomorrow_dish.id } ].each do |filters|
+      get reactions_url, params: filters
+
+      assert_response :success
+      assert_select "title", text: "本日の集計結果 | 給食リアクション"
+      assert_select "h2", text: "本日の集計結果"
+      assert_select "time[datetime='2026-10-08']", text: "2026年10月8日"
+      assert_select ".reaction-results-dish", text: "対象料理：カレー"
+      assert_results([ "4人 / 44.4%", "2人 / 22.2%", "3人 / 33.3%" ], 9)
+      assert_select "main", text: /味噌汁/, count: 0
+      assert_select "main input, main select, main form", count: 0
+    end
+  end
+
+  test "results round percentages to one decimal and show zero and one hundred percent" do
+    reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 1, neutral_count: 5, negative_count: 0)
+
+    get reactions_url
+    assert_results([ "1人 / 16.7%", "5人 / 83.3%", "0人 / 0.0%" ], 6)
+
+    [ [ 1, 0, 0 ], [ 0, 1, 0 ], [ 0, 0, 1 ] ].each do |counts|
+      reaction.update!(%i[ positive_count neutral_count negative_count ].zip(counts).to_h)
+      get reactions_url
+      assert_results(counts.map { |count| "#{count}人 / #{count == 1 ? '100.0%' : '0.0%'}" }, 1)
+    end
+  end
+
+  test "results show zero people and dashes when today's target has no reactions" do
+    get reactions_url
+
+    assert_response :success
+    assert_select ".reaction-results-dish", text: "対象料理：カレー"
+    assert_results([ "0人 / -", "0人 / -", "0人 / -" ], 0)
+    assert_select ".reaction-results-unset-notice", count: 0
+  end
+
+  test "results show today's date and unset guidance without totals or another day's dish" do
+    @feedback_target.update!(target_date: Date.yesterday)
+    saved_reaction
+
+    get reactions_url, params: { target_date: Date.yesterday, feedback_target_id: @feedback_target.id }
+
+    assert_response :success
+    assert_select "h2", text: "本日の集計結果"
+    assert_select "time[datetime='2026-10-08']", text: "2026年10月8日"
+    assert_select ".reaction-results-unset-notice p", count: 2
+    assert_select ".reaction-results-unset-notice p:first-child", text: "本日のフィードバック対象料理はまだ設定されていません。"
+    assert_select ".reaction-results-unset-notice p:last-child", text: "給食センター側で設定されると、本日の集計結果を確認できるようになります。"
+    assert_select ".reaction-results-dish, .reaction-results-count, .reaction-results-total, .reaction-results-notes", count: 0
+    assert_select "main", text: /カレー/, count: 0
+  end
+
+  test "results use the current date across midnight in Japan" do
+    yesterday_target = FeedbackTarget.create!(dish: Dish.create!(name: "味噌汁", category: :soup), target_date: Date.yesterday)
+    Reaction.create!(classroom: @classrooms.first, feedback_target: yesterday_target,
+      positive_count: 0, neutral_count: 1, negative_count: 0)
+
+    travel_to Time.utc(2026, 10, 7, 14, 59, 59)
+    get reactions_url
+    assert_select "time[datetime='2026-10-07']", text: "2026年10月7日"
+    assert_select ".reaction-results-dish", text: "対象料理：味噌汁"
+    assert_results([ "0人 / 0.0%", "1人 / 100.0%", "0人 / 0.0%" ], 1)
+
+    travel_to Time.utc(2026, 10, 7, 15, 0, 0)
+    get reactions_url
+    assert_select "time[datetime='2026-10-08']", text: "2026年10月8日"
+    assert_select ".reaction-results-dish", text: "対象料理：カレー"
+    assert_results([ "0人 / -", "0人 / -", "0人 / -" ], 0)
+  end
+
+  test "the kindergarten header links to results and results link back to entry" do
+    get new_reaction_url
+    assert_select "header a[href=?]", reactions_path, text: "集計結果", count: 1
+
+    get reactions_url
+    assert_select "header a[href=?]", new_reaction_path, text: "入力・編集", count: 1
+  end
+
+  test "results redirect logged out and deleted users and forbid center users" do
+    @user.destroy!
+    get reactions_url
+    assert_redirected_to kindergarten_login_url
+    assert_nil flash[:alert]
+
+    delete kindergarten_logout_path
+    get reactions_url
+    assert_redirected_to kindergarten_login_url
+    assert_nil flash[:alert]
+
+    user = User.create!(login_id: "Center", password: "center-password", role: :center)
+    post center_login_path, params: { login_id: user.login_id, password: "center-password" }
+    get reactions_url
+    assert_response :forbidden
+    assert_empty response.body
+    assert_nil flash[:alert]
+  end
+
+  test "viewing and reloading results never changes stored data and reflects later registrations and updates" do
+    reaction = saved_reaction
+    models = [ Reaction, FeedbackTarget, Dish, Classroom, Kindergarten, User ]
+    original_data = models.map { |model| model.order(:id).map(&:attributes) }
+
+    2.times do
+      get reactions_url
+      assert_results([ "2人 / 66.7%", "1人 / 33.3%", "0人 / 0.0%" ], 3)
+    end
+    assert_equal original_data, models.map { |model| model.order(:id).map(&:attributes) }
+
+    reaction.update!(positive_count: 4)
+    Reaction.create!(classroom: @classrooms.last, feedback_target: @feedback_target,
+      positive_count: 0, neutral_count: 1, negative_count: 2)
+    updated_data = models.map { |model| model.order(:id).map(&:attributes) }
+    get reactions_url
+    assert_results([ "4人 / 50.0%", "2人 / 25.0%", "2人 / 25.0%" ], 8)
+    assert_equal updated_data, models.map { |model| model.order(:id).map(&:attributes) }
+  end
+
   private
+
+  def assert_results(values, total)
+    labels = [ "美味しそうに食べていた", "普通・どちらでもない", "苦手そうに食べていた" ]
+    assert_select ".reaction-results-count", count: 3
+    labels.zip(values).each do |label, value|
+      assert_select ".reaction-results-count", text: "#{label}　#{value}", count: 1
+    end
+    assert_select ".reaction-results-total", text: "観察対象人数：#{total}人", count: 1
+  end
 
   def saved_reaction(classroom: @classrooms.first, target: @feedback_target)
     Reaction.create!(classroom: classroom, feedback_target: target, positive_count: 2, neutral_count: 1, negative_count: 0)
