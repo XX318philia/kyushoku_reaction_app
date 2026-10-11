@@ -7,6 +7,10 @@
   <div class="reaction-entry-content mx-auto">
     <h2 class="text-center"><%= @reaction.persisted? ? "編集フォーム" : "入力フォーム" %></h2>
 
+    <% if flash[:alert] %>
+      <div class="alert alert-danger" role="alert"><%= flash[:alert] %></div>
+    <% end %>
+
     <% if flash[:notice] %>
       <div class="alert alert-success" role="status"><%= flash[:notice] %></div>
     <% end %>

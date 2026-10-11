@@ -133,14 +133,16 @@ class CenterReactionResultsControllerTest < ActionDispatch::IntegrationTest
     assert_results([ "0人 / -", "0人 / -", "0人 / -" ], 0)
   end
 
-  test "redirects logged out and deleted users and forbids kindergarten users without flash alerts" do
+  test "redirects logged out and deleted users without alerts and kindergarten users with an alert" do
     @user.destroy!
     get center_reaction_results_url
+    assert_response :see_other
     assert_redirected_to center_login_url
     assert_nil flash[:alert]
 
     delete center_logout_path
     get center_reaction_results_url
+    assert_response :see_other
     assert_redirected_to center_login_url
     assert_nil flash[:alert]
 
@@ -148,9 +150,31 @@ class CenterReactionResultsControllerTest < ActionDispatch::IntegrationTest
       role: :kindergarten, kindergarten: @kindergarten)
     post kindergarten_login_path, params: { login_id: user.login_id, password: "kindergarten-password" }
     get center_reaction_results_url
-    assert_response :forbidden
-    assert_empty response.body
-    assert_nil flash[:alert]
+    assert_response :see_other
+    assert_redirected_to new_reaction_url
+    assert_equal "このページにはアクセスできません", flash[:alert]
+    assert_equal user.id, request.session[:user_id]
+  end
+
+  test "results display an access alert below the heading once with and without a target" do
+    [ true, false ].each do |target_set|
+      @feedback_target.destroy! unless target_set
+      get new_reaction_url
+      assert_response :see_other
+      assert_redirected_to center_reaction_results_url
+      assert_equal "このページにはアクセスできません", flash[:alert]
+
+      follow_redirect!
+      assert_response :success
+      assert_select ".center-reaction-results-content > h2 + .alert.alert-danger[role=alert]",
+        text: "このページにはアクセスできません", count: 1
+      assert_select ".center-reaction-results-unset-notice", count: target_set ? 0 : 1
+
+      get center_reaction_results_url
+      assert_response :success
+      assert_select "main .alert[role=alert]", count: 0
+      assert_nil flash[:alert]
+    end
   end
 
   test "viewing results preserves all stored data and reloads reflect later registrations and updates" do

@@ -129,6 +129,42 @@ class CenterReactionResultsTest < ActionDispatch::SystemTestCase
     end
   end
 
+  test "access alert fits below the results heading and disappears with and without a target" do
+    target = FeedbackTarget.create!(dish: @dish, target_date: Date.current)
+    log_in
+
+    [ true, false ].each do |target_set|
+      target.destroy! unless target_set
+
+      [ 320, 390, 960, 1280 ].each do |width|
+        resize_viewport(width)
+        visit new_reaction_path
+
+        assert_current_path center_reaction_results_path
+        assert_selector ".center-reaction-results-content > h2 + .alert.alert-danger[role=alert]",
+          exact_text: "このページにはアクセスできません", count: 1
+        assert_selector ".center-reaction-results-unset-notice", count: target_set ? 0 : 1
+        assert_fits_viewport(width)
+        assert page.evaluate_script(<<~JS), "Access alert overflows or overlaps the results content at #{width}px"
+          (() => {
+            const element = document.querySelector('main .alert[role=alert]');
+            const alert = element.getBoundingClientRect();
+            const content = document.querySelector('.center-reaction-results-content').getBoundingClientRect();
+            const heading = document.querySelector('main h2').getBoundingClientRect();
+            const date = document.querySelector('.center-reaction-results-date').getBoundingClientRect();
+            return element.scrollWidth <= element.clientWidth &&
+              alert.left >= content.left && alert.right <= content.right &&
+              alert.top >= heading.bottom && date.top >= alert.bottom;
+          })()
+        JS
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue53-center-alert-#{target_set ? 'set' : 'unset'}-#{width}.png"))
+
+        visit center_reaction_results_path
+        assert_no_selector "main .alert[role=alert]"
+      end
+    end
+  end
+
   private
 
   def log_in

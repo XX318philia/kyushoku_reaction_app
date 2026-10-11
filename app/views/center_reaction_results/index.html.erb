@@ -7,6 +7,10 @@
   <div class="center-reaction-results-content mx-auto">
     <h2 class="text-center">本日の集計結果</h2>
 
+    <% if flash[:alert] %>
+      <div class="alert alert-danger" role="alert"><%= flash[:alert] %></div>
+    <% end %>
+
     <p class="center-reaction-results-date">対象日：<time datetime="<%= @target_date.iso8601 %>"><%= @target_date.strftime("%Y年%-m月%-d日") %></time></p>
 
     <% if @feedback_target %>

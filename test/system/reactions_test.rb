@@ -756,6 +756,39 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     end
   end
 
+  test "access alert fits below the entry heading and disappears with and without a target" do
+    log_in
+
+    [ true, false ].each do |target_set|
+      @feedback_target.destroy! unless target_set
+
+      [ 320, 390, 1280 ].each do |width|
+        page.driver.browser.manage.window.resize_to(width, 844)
+        visit new_dish_path
+
+        assert_current_path new_reaction_path
+        assert_selector ".reaction-entry-content > h2 + .alert.alert-danger[role=alert]",
+          exact_text: "このページにはアクセスできません", count: 1
+        assert_selector ".reaction-entry-unset-notice", count: target_set ? 0 : 1
+        assert_no_horizontal_overflow(width)
+        assert page.evaluate_script(<<~JS), "Access alert overlaps or escapes the entry content at #{width}px"
+          (() => {
+            const alert = document.querySelector('main .alert[role=alert]').getBoundingClientRect();
+            const content = document.querySelector('.reaction-entry-content').getBoundingClientRect();
+            const heading = document.querySelector('main h2').getBoundingClientRect();
+            const date = document.querySelector('.reaction-entry-date').getBoundingClientRect();
+            return alert.left >= content.left && alert.right <= content.right &&
+              alert.top >= heading.bottom && date.top >= alert.bottom;
+          })()
+        JS
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue53-entry-alert-#{target_set ? 'set' : 'unset'}-#{width}.png"))
+
+        visit new_reaction_path
+        assert_no_selector "main .alert[role=alert]"
+      end
+    end
+  end
+
   private
 
   def assert_result_row(label, value)

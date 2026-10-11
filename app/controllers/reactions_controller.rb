@@ -112,10 +112,4 @@ class ReactionsController < ApplicationController
     counts = params.fetch(:reaction, ActionController::Parameters.new).permit(:positive_count, :neutral_count, :negative_count)
     %i[ positive_count neutral_count negative_count ].index_with { |attribute| counts[attribute] }
   end
-
-  def require_kindergarten_user
-    return redirect_to kindergarten_login_path unless logged_in?
-
-    head :forbidden unless kindergarten_user?
-  end
 end

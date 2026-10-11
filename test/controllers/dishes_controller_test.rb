@@ -2,8 +2,38 @@ require "test_helper"
 
 class DishesControllerTest < ActionDispatch::IntegrationTest
   setup do
-    user = User.create!(login_id: "Center", password: "center-password", role: :center)
-    post center_login_path, params: { login_id: user.login_id, password: "center-password" }
+    @user = User.create!(login_id: "Center", password: "center-password", role: :center)
+    post center_login_path, params: { login_id: @user.login_id, password: "center-password" }
+  end
+
+  test "redirects logged out users to center login without an alert or writes" do
+    delete center_logout_path
+
+    assert_login_required
+  end
+
+  test "redirects a deleted session user to center login without an alert or writes" do
+    @user.destroy!
+
+    assert_login_required
+  end
+
+  test "redirects kindergarten users to entry with an alert without creating or updating dishes" do
+    user = User.create!(login_id: "Sakura", password: "kindergarten-password",
+      role: :kindergarten, kindergarten: Kindergarten.create!(name: "さくら幼稚園"))
+    post kindergarten_login_path, params: { login_id: user.login_id, password: "kindergarten-password" }
+    dish = Dish.create!(name: "カレー", category: :main_dish)
+    original_attributes = dish.attributes
+
+    get new_dish_url
+    assert_access_denied
+
+    assert_no_difference "Dish.count" do
+      post dishes_url, params: { dish: { id: dish.id, name: "野菜スープ", category: "soup" } }
+    end
+    assert_access_denied
+    assert_equal original_attributes, dish.reload.attributes
+    assert_equal user.id, request.session[:user_id]
   end
 
   test "displays a blank dish registration form with all enum categories" do
@@ -147,6 +177,26 @@ class DishesControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def assert_login_required
+    get new_dish_url
+    assert_response :see_other
+    assert_redirected_to center_login_url
+    assert_nil flash[:alert]
+
+    assert_no_difference "Dish.count" do
+      post dishes_url, params: { dish: { name: "野菜スープ", category: "soup" } }
+    end
+    assert_response :see_other
+    assert_redirected_to center_login_url
+    assert_nil flash[:alert]
+  end
+
+  def assert_access_denied
+    assert_response :see_other
+    assert_redirected_to new_reaction_url
+    assert_equal "このページにはアクセスできません", flash[:alert]
+  end
 
   def assert_registration_failure(attributes)
     dish = Dish.new(attributes)

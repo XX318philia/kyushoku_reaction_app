@@ -4,8 +4,44 @@ class FeedbackTargetsControllerTest < ActionDispatch::IntegrationTest
   setup do
     travel_to Time.zone.local(2026, 10, 8, 0, 30)
     @dish = Dish.create!(name: "カレー", category: :main_dish)
-    user = User.create!(login_id: "Center", password: "center-password", role: :center)
-    post center_login_path, params: { login_id: user.login_id, password: "center-password" }
+    @user = User.create!(login_id: "Center", password: "center-password", role: :center)
+    post center_login_path, params: { login_id: @user.login_id, password: "center-password" }
+  end
+
+  test "redirects logged out users to center login without an alert or writes" do
+    delete center_logout_path
+
+    assert_login_required
+  end
+
+  test "redirects a deleted session user to center login without an alert or writes" do
+    @user.destroy!
+
+    assert_login_required
+  end
+
+  test "redirects kindergarten users to entry with an alert without creating or updating targets" do
+    user = User.create!(login_id: "Sakura", password: "kindergarten-password",
+      role: :kindergarten, kindergarten: Kindergarten.create!(name: "さくら幼稚園"))
+    post kindergarten_login_path, params: { login_id: user.login_id, password: "kindergarten-password" }
+
+    get new_feedback_target_url
+    assert_access_denied
+
+    assert_no_difference "FeedbackTarget.count" do
+      post feedback_targets_url, params: { feedback_target: { dish_id: @dish.id } }
+    end
+    assert_access_denied
+
+    target = FeedbackTarget.create!(dish: @dish, target_date: Date.current)
+    original_attributes = target.attributes
+    other_dish = Dish.create!(name: "味噌汁", category: :soup)
+    assert_no_difference "FeedbackTarget.count" do
+      post feedback_targets_url, params: { feedback_target: { dish_id: other_dish.id } }
+    end
+    assert_access_denied
+    assert_equal original_attributes, target.reload.attributes
+    assert_equal user.id, request.session[:user_id]
   end
 
   test "displays today's date and an unselected dish form with names and all categories" do
@@ -146,6 +182,26 @@ class FeedbackTargetsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def assert_login_required
+    get new_feedback_target_url
+    assert_response :see_other
+    assert_redirected_to center_login_url
+    assert_nil flash[:alert]
+
+    assert_no_difference "FeedbackTarget.count" do
+      post feedback_targets_url, params: { feedback_target: { dish_id: @dish.id } }
+    end
+    assert_response :see_other
+    assert_redirected_to center_login_url
+    assert_nil flash[:alert]
+  end
+
+  def assert_access_denied
+    assert_response :see_other
+    assert_redirected_to new_reaction_url
+    assert_equal "このページにはアクセスできません", flash[:alert]
+  end
 
   def assert_registration_failure(dish_id)
     feedback_target = FeedbackTarget.new(dish_id: dish_id, target_date: Date.current)
