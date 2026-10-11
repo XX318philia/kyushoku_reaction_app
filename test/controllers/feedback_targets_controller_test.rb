@@ -38,13 +38,13 @@ class FeedbackTargetsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role=alert]", count: 0
   end
 
-  test "creates a feedback target for Date current and redirects to root" do
+  test "creates a feedback target for Date current and redirects to center results" do
     assert_difference "FeedbackTarget.count", 1 do
       post feedback_targets_url, params: { feedback_target: { dish_id: @dish.id } }
     end
 
     assert_response :see_other
-    assert_redirected_to root_url
+    assert_redirected_to center_reaction_results_url
     feedback_target = FeedbackTarget.find_by!(target_date: Date.current)
     assert_equal @dish, feedback_target.dish
     assert_equal Date.new(2026, 10, 8), feedback_target.target_date
@@ -58,7 +58,7 @@ class FeedbackTargetsControllerTest < ActionDispatch::IntegrationTest
         dish_id: @dish.id, target_date: Date.yesterday, id: -1, created_at: timestamp, updated_at: timestamp } }
     end
 
-    assert_redirected_to root_url
+    assert_redirected_to center_reaction_results_url
     feedback_target = FeedbackTarget.find_by!(target_date: Date.current)
     assert_equal @dish, feedback_target.dish
     assert_not_equal(-1, feedback_target.id)
@@ -98,7 +98,7 @@ class FeedbackTargetsControllerTest < ActionDispatch::IntegrationTest
       post feedback_targets_url, params: { feedback_target: { dish_id: @dish.id } }
     end
 
-    assert_redirected_to root_url
+    assert_redirected_to center_reaction_results_url
     assert FeedbackTarget.exists?(dish: @dish, target_date: Date.current)
   end
 

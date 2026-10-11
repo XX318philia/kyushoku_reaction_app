@@ -13,7 +13,7 @@ class FeedbackTargetsController < ApplicationController
     @feedback_target = FeedbackTarget.new(feedback_target_params.merge(target_date: @target_date))
 
     if @feedback_target.save
-      redirect_to root_path, status: :see_other
+      redirect_to center_reaction_results_path, status: :see_other
     else
       @feedback_target = FeedbackTarget.find_by(target_date: @target_date) || @feedback_target
       load_dishes

@@ -50,7 +50,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "header nav[aria-label=?]", "給食センター用ナビゲーション" do
         assert_select "span", text: "Philia給食センター"
-        assert_select "a[href='#']", text: "当日集計結果", count: 1
+        assert_select "a[href=?]", center_reaction_results_path, text: "当日集計結果", count: 1
         assert_select "a[href=?]", new_feedback_target_path, text: "対象料理設定", count: 1
         assert_select "a[href=?]", new_dish_path, text: "料理マスタ登録", count: 1
         assert_select "a[href=?][data-turbo-method=delete]", center_logout_path, text: "ログアウト", count: 1

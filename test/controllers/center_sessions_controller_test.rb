@@ -26,11 +26,11 @@ class CenterSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_nil request.session[:user_id]
   end
 
-  test "logs in a center user and redirects to the root" do
+  test "logs in a center user and redirects to center results" do
     post center_login_url, params: { login_id: @center_user.login_id, password: "center-password" }
 
     assert_response :see_other
-    assert_redirected_to root_url
+    assert_redirected_to center_reaction_results_url
     assert_equal @center_user.id, request.session[:user_id]
 
     follow_redirect!
@@ -119,7 +119,7 @@ class CenterSessionsControllerTest < ActionDispatch::IntegrationTest
 
     post center_login_url, params: { login_id: @center_user.login_id, password: "center-password" }
 
-    assert_redirected_to root_url
+    assert_redirected_to center_reaction_results_url
     assert_equal @center_user.id, request.session[:user_id]
   end
 
@@ -178,7 +178,7 @@ class CenterSessionsSessionTest < ActionController::TestCase
 
     post :create, params: { login_id: user.login_id, password: "center-password" }
 
-    assert_redirected_to root_url
+    assert_redirected_to center_reaction_results_url
     assert_equal user.id, session[:user_id]
     assert_nil session[:previous_value]
     assert_equal user, @controller.send(:current_user)

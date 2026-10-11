@@ -1,0 +1,41 @@
+<% content_for :title, "本日の集計結果 | 給食リアクション" %>
+<% content_for :head do %>
+  <%= stylesheet_link_tag "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&display=swap", "data-turbo-track": "dynamic" %>
+<% end %>
+
+<main class="center-reaction-results<%= " center-reaction-results--unset" unless @feedback_target %>">
+  <div class="center-reaction-results-content mx-auto">
+    <h2 class="text-center">本日の集計結果</h2>
+
+    <p class="center-reaction-results-date">対象日：<time datetime="<%= @target_date.iso8601 %>"><%= @target_date.strftime("%Y年%-m月%-d日") %></time></p>
+
+    <% if @feedback_target %>
+      <p class="center-reaction-results-dish">対象料理：<%= @dish.name %></p>
+
+      <div class="center-reaction-results-grid">
+        <% { positive: "美味しそうに食べていた", neutral: "普通・どちらでもない", negative: "苦手そうに食べていた" }.each do |type, label| %>
+          <% percentage = @reaction_summary.fetch(:"#{type}_percentage") %>
+          <p class="center-reaction-results-count center-reaction-results-count--<%= type %>">
+            <span class="center-reaction-results-label"><%= label %></span>
+            <span class="center-reaction-results-value"><%= @reaction_summary.fetch(:"#{type}_count") %>人 / <%= percentage.nil? ? "-" : number_to_percentage(percentage, precision: 1) %></span>
+          </p>
+        <% end %>
+
+        <p class="center-reaction-results-total">
+          <span class="center-reaction-results-label">観察対象人数</span>
+          <span class="center-reaction-results-value"><%= @reaction_summary.fetch(:total_count) %>人</span>
+        </p>
+      </div>
+
+      <div class="center-reaction-results-notes">
+        <p>※ 最新の集計を確認したい場合は、ページを再読み込みしてください。</p>
+        <p>※ 各割合は小数第1位まで四捨五入して表示しているため、合計が100.0%にならない場合があります。</p>
+      </div>
+    <% else %>
+      <div class="center-reaction-results-unset-notice">
+        <p>本日のフィードバック対象料理は、まだ設定されていません。</p>
+        <p>『対象料理設定画面』で設定を完了させてください。</p>
+      </div>
+    <% end %>
+  </div>
+</main>
