@@ -1,4 +1,6 @@
 class DishesController < ApplicationController
+  before_action :require_center_user
+
   def new
     @dish = Dish.new
   end

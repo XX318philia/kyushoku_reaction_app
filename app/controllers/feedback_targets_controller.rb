@@ -1,4 +1,5 @@
 class FeedbackTargetsController < ApplicationController
+  before_action :require_center_user
   before_action :set_today
 
   def new

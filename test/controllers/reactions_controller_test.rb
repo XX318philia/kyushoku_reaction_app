@@ -211,6 +211,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
 
     get new_reaction_url
 
+    assert_response :see_other
     assert_redirected_to kindergarten_login_url
     assert_nil flash[:alert]
   end
@@ -220,18 +221,18 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
 
     get new_reaction_url
 
+    assert_response :see_other
     assert_redirected_to kindergarten_login_url
+    assert_nil flash[:alert]
   end
 
-  test "forbids center users without displaying the input page or adding a flash alert" do
+  test "redirects center users from entry to center results with an alert" do
     user = User.create!(login_id: "Center", password: "center-password", role: :center)
     post center_login_path, params: { login_id: user.login_id, password: "center-password" }
 
     get new_reaction_url
 
-    assert_response :forbidden
-    assert_empty response.body
-    assert_nil flash[:alert]
+    assert_access_denied
     assert_equal user.id, request.session[:user_id]
   end
 
@@ -348,17 +349,20 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_no_difference "Reaction.count" do
       post reactions_url, params: registration_params
     end
+    assert_response :see_other
     assert_redirected_to kindergarten_login_url
+    assert_nil flash[:alert]
 
     delete kindergarten_logout_path
     assert_no_difference "Reaction.count" do
       post reactions_url, params: registration_params
     end
+    assert_response :see_other
     assert_redirected_to kindergarten_login_url
     assert_nil flash[:alert]
   end
 
-  test "forbids reaction registration from a center user" do
+  test "redirects reaction registration from a center user with an alert" do
     user = User.create!(login_id: "Center", password: "center-password", role: :center)
     post center_login_path, params: { login_id: user.login_id, password: "center-password" }
 
@@ -366,9 +370,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       post reactions_url, params: registration_params
     end
 
-    assert_response :forbidden
-    assert_empty response.body
-    assert_nil flash[:alert]
+    assert_access_denied
   end
 
   test "rejects missing nonexistent malformed and other kindergarten classroom ids" do
@@ -753,7 +755,9 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_no_difference "Reaction.count" do
       post reactions_url, params: update_params
     end
+    assert_response :see_other
     assert_redirected_to kindergarten_login_url
+    assert_nil flash[:alert]
     assert_equal original_attributes, reaction.reload.attributes
 
     user = User.create!(login_id: "Center", password: "center-password", role: :center)
@@ -761,7 +765,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_no_difference "Reaction.count" do
       post reactions_url, params: update_params
     end
-    assert_response :forbidden
+    assert_access_denied
     assert_equal original_attributes, reaction.reload.attributes
 
     post kindergarten_login_path, params: { login_id: @user.login_id, password: "kindergarten-password" }
@@ -773,6 +777,43 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role=alert] li", text: "本日のフィードバック対象料理はまだ設定されていません。"
     assert_select "main form, main input", count: 0
     assert_equal original_attributes, reaction.reload.attributes
+  end
+
+  test "a deleted session user cannot update a loaded reaction" do
+    reaction = saved_reaction
+    original_attributes = reaction.attributes
+    update_params = editing_params(reaction)
+    @user.destroy!
+
+    assert_no_difference "Reaction.count" do
+      post reactions_url, params: update_params
+    end
+
+    assert_response :see_other
+    assert_redirected_to kindergarten_login_url
+    assert_nil flash[:alert]
+    assert_equal original_attributes, reaction.reload.attributes
+  end
+
+  test "entry displays an access alert below its heading once with and without a target" do
+    [ true, false ].each do |target_set|
+      @feedback_target.destroy! unless target_set
+      get new_dish_url
+      assert_response :see_other
+      assert_redirected_to new_reaction_url
+      assert_equal "このページにはアクセスできません", flash[:alert]
+
+      follow_redirect!
+      assert_response :success
+      assert_select ".reaction-entry-content > h2 + .alert.alert-danger[role=alert]",
+        text: "このページにはアクセスできません", count: 1
+      assert_select ".reaction-entry-unset-notice", count: target_set ? 0 : 1
+
+      get new_reaction_url
+      assert_response :success
+      assert_select "main .alert[role=alert]", count: 0
+      assert_nil flash[:alert]
+    end
   end
 
   test "different classes and targets on other dates do not prevent a new reaction" do
@@ -953,23 +994,23 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "header a[href=?]", new_reaction_path, text: "入力・編集", count: 1
   end
 
-  test "results redirect logged out and deleted users and forbid center users" do
+  test "results redirect logged out and deleted users without alerts and center users with an alert" do
     @user.destroy!
     get reactions_url
+    assert_response :see_other
     assert_redirected_to kindergarten_login_url
     assert_nil flash[:alert]
 
     delete kindergarten_logout_path
     get reactions_url
+    assert_response :see_other
     assert_redirected_to kindergarten_login_url
     assert_nil flash[:alert]
 
     user = User.create!(login_id: "Center", password: "center-password", role: :center)
     post center_login_path, params: { login_id: user.login_id, password: "center-password" }
     get reactions_url
-    assert_response :forbidden
-    assert_empty response.body
-    assert_nil flash[:alert]
+    assert_access_denied
   end
 
   test "viewing and reloading results never changes stored data and reflects later registrations and updates" do
@@ -993,6 +1034,12 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def assert_access_denied
+    assert_response :see_other
+    assert_redirected_to center_reaction_results_url
+    assert_equal "このページにはアクセスできません", flash[:alert]
+  end
 
   def assert_results(values, total)
     labels = [ "美味しそうに食べていた", "普通・どちらでもない", "苦手そうに食べていた" ]

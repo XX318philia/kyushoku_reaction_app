@@ -6,6 +6,18 @@ class ApplicationController < ActionController::Base
 
   private
 
+  def require_kindergarten_user
+    return redirect_to kindergarten_login_path, status: :see_other unless logged_in?
+
+    redirect_to center_reaction_results_path, alert: "このページにはアクセスできません", status: :see_other unless kindergarten_user?
+  end
+
+  def require_center_user
+    return redirect_to center_login_path, status: :see_other unless logged_in?
+
+    redirect_to new_reaction_path, alert: "このページにはアクセスできません", status: :see_other unless center_user?
+  end
+
   def authenticate_user(login_id:, password:)
     User.authenticate_by(login_id: login_id, password: password)
   end
