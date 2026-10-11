@@ -390,7 +390,7 @@
 }
 
 .center-reaction-results {
-  padding: 22px 40px 48px;
+  padding: 96px 40px 48px;
   background-color: #fff;
   color: #1f1f1f;
   font-family: "Noto Sans JP", sans-serif;
@@ -399,7 +399,7 @@
   line-height: 29px;
 
   h2 {
-    margin: 0 0 13px;
+    margin: 0 0 14px;
     color: #000;
     font-size: 28px;
     font-weight: normal;
@@ -409,6 +409,10 @@
   .center-reaction-results-date,
   .center-reaction-results-dish {
     margin: 0 0 8px;
+  }
+
+  .center-reaction-results-dish {
+    font-size: 19px;
   }
 
   .center-reaction-results-count,
@@ -443,10 +447,15 @@
   }
 
   .center-reaction-results-notes {
+    max-width: 642px;
     margin: 9px 0 0;
     color: #000;
     font-size: 11px;
-    line-height: normal;
+    line-height: 13px;
+
+    p {
+      margin: 0;
+    }
   }
 }
 
@@ -464,22 +473,19 @@
 }
 
 .center-reaction-results--unset {
-  padding: 27px 24px 48px;
+  padding: 96px 24px 48px;
 
   .center-reaction-results-content {
-    max-width: 768px;
+    max-width: 776px;
   }
 
   h2 {
-    margin-bottom: 20px;
-  }
-
-  .center-reaction-results-date {
-    margin: 0 0 42px;
+    transform: translateX(-1px);
   }
 }
 
 .center-reaction-results-unset-notice {
+  max-width: 774px;
   color: #000;
   font-size: 20px;
   line-height: normal;

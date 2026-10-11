@@ -62,10 +62,12 @@ class CenterReactionResultsControllerTest < ActionDispatch::IntegrationTest
     assert_nil @feedback_target.reaction_summary[:positive_percentage]
   end
 
-  test "shows only user facing reload guidance" do
+  test "shows reload guidance followed by the approved rounding explanation" do
     get center_reaction_results_url
 
-    assert_select ".center-reaction-results-notes", text: "※ 最新の集計を確認したい場合は、ページを再読み込みしてください。", count: 1
+    assert_select ".center-reaction-results-notes p", count: 2
+    assert_select ".center-reaction-results-notes p:first-child", text: "※ 最新の集計を確認したい場合は、ページを再読み込みしてください。"
+    assert_select ".center-reaction-results-notes p:last-child", text: "※ 各割合は小数第1位まで四捨五入して表示しているため、合計が100.0%にならない場合があります。"
     assert_select "main", text: /計算方法の不整合|過去日閲覧はMVP対象外/, count: 0
   end
 

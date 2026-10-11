@@ -28,7 +28,7 @@ class CenterReactionResultsTest < ActionDispatch::SystemTestCase
     assert_selector "main time", text: Date.current.strftime("%Y年%-m月%-d日")
     assert_selector ".center-reaction-results-unset-notice p:first-child", exact_text: "本日のフィードバック対象料理は、まだ設定されていません。"
     assert_selector ".center-reaction-results-unset-notice p:last-child", exact_text: "『対象料理設定画面』で設定を完了させてください。"
-    assert_no_selector ".center-reaction-results-grid, .center-reaction-results-dish"
+    assert_no_selector ".center-reaction-results-grid, .center-reaction-results-dish, .center-reaction-results-notes"
 
     [ 320, 390, 767, 768, 960, 1280 ].each do |width|
       resize_viewport(width)
@@ -37,14 +37,16 @@ class CenterReactionResultsTest < ActionDispatch::SystemTestCase
       click_link "当日集計結果"
       assert_current_path center_reaction_results_path
       assert_selector ".center-reaction-results-unset-notice"
+      assert_no_selector ".center-reaction-results-notes"
       assert_equal shared_layout, shared_layout_styles
       assert_fits_viewport(width)
+      assert_frame_positions(unset: true) if width == 960
       assert page.evaluate_script(<<~JS), "Unset guidance differs from the approved design at #{width}px"
         [...document.querySelectorAll('.center-reaction-results-unset-notice, .center-reaction-results-unset-notice p')].every(element => {
           const style = getComputedStyle(element);
           return style.fontSize === '20px' && style.fontWeight === '400' &&
             style.color === 'rgb(0, 0, 0)' && style.textDecorationLine === 'none';
-        })
+        }) && getComputedStyle(document.querySelector('.center-reaction-results-unset-notice p + p')).marginTop === '20px'
       JS
       page.save_screenshot(Rails.root.join("tmp/screenshots/issue37-center-results-unset-#{width}.png")) if [ 390, 960 ].include?(width)
     end
@@ -60,6 +62,7 @@ class CenterReactionResultsTest < ActionDispatch::SystemTestCase
       resize_viewport(width)
       assert_fits_viewport(width)
       assert_results_design(width)
+      assert_frame_positions if width == 960
       page.save_screenshot(Rails.root.join("tmp/screenshots/issue37-center-results-zero-#{width}.png")) if [ 390, 960 ].include?(width)
     end
   end
@@ -83,13 +86,16 @@ class CenterReactionResultsTest < ActionDispatch::SystemTestCase
     assert_result "普通・どちらでもない", "2人 / 22.2%"
     assert_result "苦手そうに食べていた", "3人 / 33.3%"
     assert_selector ".center-reaction-results-total .center-reaction-results-value", exact_text: "9人"
-    assert_selector ".center-reaction-results-notes", exact_text: "※ 最新の集計を確認したい場合は、ページを再読み込みしてください。"
+    assert_selector ".center-reaction-results-notes p", count: 2
+    assert_selector ".center-reaction-results-notes p:first-child", exact_text: "※ 最新の集計を確認したい場合は、ページを再読み込みしてください。"
+    assert_selector ".center-reaction-results-notes p:last-child", exact_text: "※ 各割合は小数第1位まで四捨五入して表示しているため、合計が100.0%にならない場合があります。"
     assert_no_text "計算方法の不整合"
 
     [ 390, 960 ].each do |width|
       resize_viewport(width)
       assert_fits_viewport(width)
       assert_results_design(width)
+      assert_frame_positions if width == 960
       page.save_screenshot(Rails.root.join("tmp/screenshots/issue37-center-results-#{width}.png"))
     end
     assert_equal original_data, stored_data
@@ -149,8 +155,37 @@ class CenterReactionResultsTest < ActionDispatch::SystemTestCase
   end
 
   def resize_viewport(width)
-    page.driver.browser.manage.window.resize_to(width, 844)
+    # Figmaの960×720pxをブラウザのコンテンツ領域で再現する。
+    height = width == 960 ? 720 : 844
+    browser = page.driver.browser
+    browser.manage.window.resize_to(width, height)
+    chrome_height = height - page.evaluate_script("window.innerHeight")
+    browser.manage.window.resize_to(width, height + chrome_height)
     assert_equal width, page.evaluate_script("window.innerWidth")
+    assert_equal height, page.evaluate_script("window.innerHeight")
+  end
+
+  def assert_frame_positions(unset: false)
+    positions = if unset
+      { ".center-reaction-results-date" => [ 92, 222 ],
+        ".center-reaction-results-unset-notice" => [ 92, 259 ] }
+    else
+      { ".center-reaction-results-date" => [ 40, 222 ],
+        ".center-reaction-results-dish" => [ 40, 259 ],
+        ".center-reaction-results-count--positive" => [ 40, 296 ],
+        ".center-reaction-results-count--neutral" => [ 490, 296 ],
+        ".center-reaction-results-count--negative" => [ 40, 386 ],
+        ".center-reaction-results-total" => [ 490, 386 ],
+        ".center-reaction-results-notes" => [ 40, 469 ] }
+    end
+    heading = find("main h2").evaluate_script("this.getBoundingClientRect().toJSON()")
+    assert_in_delta 167, heading.fetch("top"), 0.1
+    assert_in_delta(unset ? 479 : 480, (heading.fetch("left") + heading.fetch("right")) / 2, 0.1)
+    positions.each do |selector, (x, y)|
+      rect = find(selector).evaluate_script("this.getBoundingClientRect().toJSON()")
+      assert_in_delta x, rect.fetch("left"), 0.1, "#{selector} differs from Figma horizontally"
+      assert_in_delta y, rect.fetch("top"), 0.1, "#{selector} differs from Figma vertically"
+    end
   end
 
   def shared_layout_styles
@@ -194,7 +229,7 @@ class CenterReactionResultsTest < ActionDispatch::SystemTestCase
           getComputedStyle(main.querySelector('h2')).fontWeight === '400' &&
           getComputedStyle(main.querySelector('h2')).color === 'rgb(0, 0, 0)' &&
           getComputedStyle(main.querySelector('.center-reaction-results-date')).fontSize === '22px' &&
-          getComputedStyle(main.querySelector('.center-reaction-results-dish')).fontSize === '22px' &&
+          getComputedStyle(main.querySelector('.center-reaction-results-dish')).fontSize === '19px' &&
           getComputedStyle(grid).gridTemplateColumns.split(' ').length === columns &&
           getComputedStyle(grid).columnGap === '30px' && getComputedStyle(grid).rowGap === '16px' &&
           rows.every((row, index) => {
