@@ -40,6 +40,174 @@ class FeedbackTargetTest < ActiveSupport::TestCase
     assert_equal [ first_reaction, second_reaction ], @feedback_target.reload.reactions.order(:classroom_id).to_a
   end
 
+  test "summarizes counts and percentages across kindergartens and classrooms" do
+    @feedback_target.save!
+    kindergarten = Kindergarten.create!(name: "さくら幼稚園")
+    other_kindergarten = Kindergarten.create!(name: "ひまわり幼稚園")
+    first_classroom = Classroom.create!(kindergarten: kindergarten, name: "ひまわり組")
+    second_classroom = Classroom.create!(kindergarten: kindergarten, name: "すみれ組")
+    third_classroom = Classroom.create!(kindergarten: other_kindergarten, name: "ひまわり組")
+    Reaction.create!(classroom: first_classroom, feedback_target: @feedback_target,
+      positive_count: 10, neutral_count: 0, negative_count: 0)
+    Reaction.create!(classroom: second_classroom, feedback_target: @feedback_target,
+      positive_count: 0, neutral_count: 20, negative_count: 0)
+    Reaction.create!(classroom: third_classroom, feedback_target: @feedback_target,
+      positive_count: 5, neutral_count: 5, negative_count: 10)
+
+    assert_equal({
+      positive_count: 15, neutral_count: 25, negative_count: 10, total_count: 50,
+      positive_percentage: 30.0, neutral_percentage: 50.0, negative_percentage: 20.0
+    }, @feedback_target.reaction_summary)
+  end
+
+  test "summarizes only reactions for its target date and dish" do
+    @feedback_target.save!
+    next_day_target = FeedbackTarget.create!(dish: @dish, target_date: @feedback_target.target_date + 1.day)
+    other_dish = Dish.create!(name: "味噌汁", category: :soup)
+    other_dish_target = FeedbackTarget.create!(dish: other_dish, target_date: @feedback_target.target_date + 2.days)
+    classroom = create_summary_classroom
+    Reaction.create!(classroom: classroom, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 1)
+    Reaction.create!(classroom: classroom, feedback_target: next_day_target,
+      positive_count: 100, neutral_count: 200, negative_count: 300)
+    Reaction.create!(classroom: classroom, feedback_target: other_dish_target,
+      positive_count: 300, neutral_count: 200, negative_count: 100)
+
+    assert_equal({
+      positive_count: 2, neutral_count: 1, negative_count: 1, total_count: 4,
+      positive_percentage: 50.0, neutral_percentage: 25.0, negative_percentage: 25.0
+    }, @feedback_target.reaction_summary)
+  end
+
+  test "returns zero counts and nil percentages without reactions" do
+    @feedback_target.save!
+
+    assert_equal({
+      positive_count: 0, neutral_count: 0, negative_count: 0, total_count: 0,
+      positive_percentage: nil, neutral_percentage: nil, negative_percentage: nil
+    }, @feedback_target.reaction_summary)
+  end
+
+  test "returns zero percent for a zero count when other counts are positive" do
+    @feedback_target.save!
+    Reaction.create!(classroom: create_summary_classroom, feedback_target: @feedback_target,
+      positive_count: 0, neutral_count: 1, negative_count: 3)
+
+    assert_equal({
+      positive_count: 0, neutral_count: 1, negative_count: 3, total_count: 4,
+      positive_percentage: 0.0, neutral_percentage: 25.0, negative_percentage: 75.0
+    }, @feedback_target.reaction_summary)
+  end
+
+  test "returns one hundred percent when only one reaction type has a positive count" do
+    @feedback_target.save!
+    reaction = Reaction.new(classroom: create_summary_classroom, feedback_target: @feedback_target)
+
+    [ :positive, :neutral, :negative ].each do |type|
+      reaction.assign_attributes(positive_count: 0, neutral_count: 0, negative_count: 0)
+      reaction["#{type}_count"] = 6
+      reaction.save!
+      summary = @feedback_target.reaction_summary
+
+      assert_equal 6, summary[:total_count]
+      [ :positive, :neutral, :negative ].each do |item|
+        assert_equal(item == type ? 6 : 0, summary[:"#{item}_count"])
+        assert_equal(item == type ? 100.0 : 0.0, summary[:"#{item}_percentage"])
+      end
+    end
+  end
+
+  test "returns percentages without rounding for display" do
+    @feedback_target.save!
+    Reaction.create!(classroom: create_summary_classroom, feedback_target: @feedback_target,
+      positive_count: 1, neutral_count: 2, negative_count: 3)
+
+    summary = @feedback_target.reaction_summary
+
+    assert_equal 6, summary[:total_count]
+    assert_in_delta 100.0 / 6, summary[:positive_percentage], 1e-10
+    assert_in_delta 200.0 / 6, summary[:neutral_percentage], 1e-10
+    assert_equal 50.0, summary[:negative_percentage]
+  end
+
+  test "recalculates after creates and updates without double counting loaded reactions" do
+    @feedback_target.save!
+    first_classroom = create_summary_classroom
+    second_classroom = Classroom.create!(kindergarten: first_classroom.kindergarten, name: "すみれ組")
+    @feedback_target.reactions.load
+    assert_equal 0, @feedback_target.reaction_summary[:total_count]
+
+    first_reaction = Reaction.create!(classroom: first_classroom, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 1)
+    assert_equal 4, @feedback_target.reaction_summary[:total_count]
+
+    Reaction.create!(classroom: second_classroom, feedback_target: @feedback_target,
+      positive_count: 3, neutral_count: 2, negative_count: 1)
+    assert_equal 10, @feedback_target.reaction_summary[:total_count]
+
+    first_reaction.update!(positive_count: 1, neutral_count: 3, negative_count: 2)
+    summary = @feedback_target.reaction_summary
+
+    assert_equal 4, summary[:positive_count]
+    assert_equal 5, summary[:neutral_count]
+    assert_equal 3, summary[:negative_count]
+    assert_equal 12, summary[:total_count]
+    assert_in_delta 100.0 / 3, summary[:positive_percentage], 1e-10
+    assert_in_delta 500.0 / 12, summary[:neutral_percentage], 1e-10
+    assert_equal 25.0, summary[:negative_percentage]
+    assert_equal summary, @feedback_target.reaction_summary
+    assert_equal 2, @feedback_target.reactions.count
+  end
+
+  test "summarizes saved counts rather than unsaved changes and new reactions" do
+    @feedback_target.save!
+    classroom = create_summary_classroom
+    Reaction.create!(classroom: classroom, feedback_target: @feedback_target,
+      positive_count: 8, neutral_count: 1, negative_count: 1)
+    other_classroom = Classroom.create!(kindergarten: classroom.kindergarten, name: "すみれ組")
+    @feedback_target.reactions.load
+    @feedback_target.reactions.first.positive_count = 100
+    @feedback_target.reactions.build(classroom: other_classroom,
+      positive_count: 100, neutral_count: 100, negative_count: 100)
+
+    assert_equal({
+      positive_count: 8, neutral_count: 1, negative_count: 1, total_count: 10,
+      positive_percentage: 80.0, neutral_percentage: 10.0, negative_percentage: 10.0
+    }, @feedback_target.reaction_summary)
+  end
+
+  test "does not change saved feedback targets or reactions when summarizing" do
+    @feedback_target.save!
+    Reaction.create!(classroom: create_summary_classroom, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 1)
+    saved_targets = FeedbackTarget.order(:id).map(&:attributes)
+    saved_reactions = Reaction.order(:id).map(&:attributes)
+
+    2.times { @feedback_target.reaction_summary }
+
+    assert_equal saved_targets, FeedbackTarget.order(:id).map(&:attributes)
+    assert_equal saved_reactions, Reaction.order(:id).map(&:attributes)
+  end
+
+  test "fetches all three count sums in one aggregate query" do
+    @feedback_target.save!
+    Reaction.create!(classroom: create_summary_classroom, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 1)
+    queries = []
+    subscriber = ->(event) do
+      queries << event.payload[:sql] unless [ "SCHEMA", "TRANSACTION" ].include?(event.payload[:name])
+    end
+
+    Reaction.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        @feedback_target.reaction_summary
+      end
+    end
+
+    assert_equal 1, queries.size
+    assert_equal 3, queries.first.scan(/\bSUM\s*\(/i).size
+  end
+
   test "does not save with a nonexistent dish" do
     @feedback_target.dish_id = Dish.maximum(:id) + 1
 
@@ -137,5 +305,12 @@ class FeedbackTargetTest < ActiveSupport::TestCase
         FeedbackTarget.new(dish: other_dish, target_date: @feedback_target.target_date).save!(validate: false)
       end
     end
+  end
+
+  private
+
+  def create_summary_classroom
+    kindergarten = Kindergarten.create!(name: "さくら幼稚園")
+    Classroom.create!(kindergarten: kindergarten, name: "ひまわり組")
   end
 end
