@@ -37,6 +37,10 @@
         <%= hidden_field_tag :displayed_target, @displayed_target %>
         <%= hidden_field_tag :classroom_id, @selected_classroom&.id, id: "loaded_classroom_id" %>
 
+        <% if @selected_classroom %>
+          <p class="reaction-entry-loaded-classroom">（登録対象クラス：<%= @selected_classroom.name %>）</p>
+        <% end %>
+
         <% { positive_count: "美味しそうに食べていた", neutral_count: "普通・どちらでもない", negative_count: "苦手そうに食べていた" }.each do |attribute, label| %>
           <div class="reaction-entry-count">
             <%= form.label attribute, label %>

@@ -56,6 +56,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[type=submit][value=登録]", count: 1
     assert_select ".reaction-entry-constraint", text: "入力制約：0以上の整数"
     assert_select ".reaction-entry-unset-notice", count: 0
+    assert_select ".reaction-entry-loaded-classroom", count: 0
   end
 
   test "displays Japanese labels for all four dish categories" do
@@ -88,6 +89,8 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       assert_select "select#classroom_id option[selected][value=?]", @classrooms.first.id
       assert_select "main form[action=?][method=post]", reactions_path, count: 1 do
         assert_select "input#loaded_classroom_id[value=?]", @classrooms.first.id
+        assert_select ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）", count: 1
+        assert_select ".reaction-entry-loaded-classroom + .reaction-entry-count #reaction_positive_count", count: 1
         assert_select "input[name=_method]", count: 0
         assert_select "input[type=submit][value=登録]", count: 1
       end
@@ -108,6 +111,11 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       assert_select "input#loaded_classroom_id", count: 1 do |fields|
         assert_equal id.to_s, fields.first["value"].to_s
       end
+      if id == @classrooms.last.id
+        assert_select ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.last.name}）", count: 1
+      else
+        assert_select ".reaction-entry-loaded-classroom", count: 0
+      end
     end
   end
 
@@ -126,6 +134,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_reaction_counts([ 0, 0, 0 ])
       assert_select "select#classroom_id option[selected]", count: 0
+      assert_select ".reaction-entry-loaded-classroom", count: 0
       assert_select "input#loaded_classroom_id", count: 1 do |fields|
         assert_empty fields.first["value"].to_s
       end
@@ -369,6 +378,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
 
       assert_response :unprocessable_content
       assert_select "[role=alert] li", text: "担当クラスを選択してください。"
+      assert_select ".reaction-entry-loaded-classroom", count: 0
       assert_select "select#classroom_id option[selected]", count: 0
       assert_select "select#classroom_id option[value=?]", other_classroom.id, count: 0
       assert_select "#reaction_positive_count[value='12']"
@@ -424,6 +434,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
         assert_response :unprocessable_content
         assert_select ".alert.alert-danger[role=alert] li", minimum: 1
         assert_select "select#classroom_id option[selected][value=?]", @classrooms.first.id
+        assert_select ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）", count: 1
         counts.each do |name, input|
           assert_select "input#reaction_#{name}", count: 1 do |fields|
             assert_equal input.to_s, fields.first["value"].to_s
@@ -455,6 +466,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role=alert] li", text: "リアクション人数を1人以上入力してください"
     assert_select "main input[type=number][value='0']", count: 3
     assert_select "select#classroom_id option[selected][value=?]", @classrooms.first.id
+    assert_select ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）", count: 1
   end
 
   test "same day resubmissions leave existing reactions unchanged and show registered guidance" do
@@ -471,6 +483,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_already_registered
     assert_equal original_attributes, reaction.reload.attributes
     assert_select "#reaction_positive_count[value='12']"
+    assert_select ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）", count: 1
   end
 
   test "different classes and targets on other dates do not prevent a new reaction" do
@@ -569,6 +582,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "time[datetime=?]", date
     assert_select ".reaction-entry-dish", text: dish
     assert_select "select#classroom_id option[selected]", count: 0
+    assert_select ".reaction-entry-loaded-classroom", count: 0
     assert_select "main input[type=number][value='0']", count: 3
   end
 

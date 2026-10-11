@@ -40,6 +40,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       assert_field "美味しそうに食べていた", with: "0"
       assert_field "普通・どちらでもない", with: "0"
       assert_field "苦手そうに食べていた", with: "0"
+      assert_no_selector ".reaction-entry-loaded-classroom"
 
       [ 390, 1280 ].each do |width|
         page.driver.browser.manage.window.resize_to(width, 844)
@@ -54,6 +55,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         assert_select "担当クラス", selected: "年少"
         select "年中", from: "担当クラス"
         assert_select "担当クラス", selected: "年中"
+        assert_no_selector ".reaction-entry-loaded-classroom"
         assert_field "美味しそうに食べていた", with: "12"
         assert_field "普通・どちらでもない", with: "3"
         assert_field "苦手そうに食べていた", with: "1"
@@ -81,6 +83,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       assert_current_path new_reaction_path
       assert_noto_sans_jp_loaded
       assert_select "担当クラス", selected: "担当クラス"
+      assert_no_selector ".reaction-entry-loaded-classroom"
       assert_field "美味しそうに食べていた", with: "0"
       assert_field "普通・どちらでもない", with: "0"
       assert_field "苦手そうに食べていた", with: "0"
@@ -104,6 +107,15 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       select @classrooms.first.name, from: "担当クラス"
       click_button "決定"
       assert_select "担当クラス", selected: @classrooms.first.name
+      assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
+      assert_no_horizontal_overflow(width)
+      assert page.evaluate_script(<<~JS), "The long registration class name does not wrap"
+        (() => {
+          const range = document.createRange();
+          range.selectNodeContents(document.querySelector('.reaction-entry-loaded-classroom'));
+          return range.getClientRects().length > 1;
+        })()
+      JS
       assert page.evaluate_script("document.documentElement.scrollWidth <= window.innerWidth")
       assert page.evaluate_script(<<~JS), "The class selector overlaps a wrapped dish name"
         document.querySelector('#classroom_id').getBoundingClientRect().top >=
@@ -129,6 +141,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         page.driver.browser.manage.window.resize_to(width, 844)
         select @classrooms.first.name, from: "担当クラス"
         click_button "決定"
+        assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
         assert_field "美味しそうに食べていた", with: "0"
         assert_field "普通・どちらでもない", with: "3"
         assert_field "苦手そうに食べていた", with: "1"
@@ -140,12 +153,14 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         page.save_screenshot(Rails.root.join("tmp/screenshots/issue33-reactions-saved-#{width}.png"))
 
         select @classrooms.last.name, from: "担当クラス"
+        assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
         assert_field "美味しそうに食べていた", with: "0"
         assert_field "普通・どちらでもない", with: "3"
         assert_field "苦手そうに食べていた", with: "1"
         assert_selector "input#loaded_classroom_id[value='#{@classrooms.first.id}']", visible: :all
         fill_in "美味しそうに食べていた", with: "12"
         click_button "決定"
+        assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.last.name}）"
         assert_field "美味しそうに食べていた", with: "2"
         assert_field "普通・どちらでもない", with: "0"
         assert_field "苦手そうに食べていた", with: "0"
@@ -153,6 +168,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         fill_in "苦手そうに食べていた", with: "5"
         select unregistered_classroom.name, from: "担当クラス"
         click_button "決定"
+        assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{unregistered_classroom.name}）"
         assert_field "美味しそうに食べていた", with: "0"
         assert_field "普通・どちらでもない", with: "0"
         assert_field "苦手そうに食べていた", with: "0"
@@ -161,6 +177,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         select "担当クラス", from: "担当クラス"
         click_button "決定"
         assert_select "担当クラス", selected: "担当クラス"
+        assert_no_selector ".reaction-entry-loaded-classroom"
         assert_field "美味しそうに食べていた", with: "0"
         assert_field "普通・どちらでもない", with: "0"
         assert_field "苦手そうに食べていた", with: "0"
@@ -178,8 +195,10 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       select classroom.name, from: "担当クラス"
       click_button "決定"
       assert_select "担当クラス", selected: classroom.name
+      assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{classroom.name}）"
       fill_in "美味しそうに食べていた", with: "4"
       select (@classrooms - [ classroom ]).first.name, from: "担当クラス"
+      assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{classroom.name}）"
 
       assert_difference "Reaction.count", 1 do
         click_button "登録"
@@ -203,6 +222,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     end
 
     assert_select "担当クラス", selected: "担当クラス"
+    assert_no_selector ".reaction-entry-loaded-classroom"
     assert_field "美味しそうに食べていた", with: "4"
   end
 
@@ -276,6 +296,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       page.driver.browser.manage.window.resize_to(width, 844)
       select classroom.name, from: "担当クラス"
       click_button "決定"
+      assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{classroom.name}）"
       fill_in "美味しそうに食べていた", with: "12"
       fill_in "普通・どちらでもない", with: "3"
       fill_in "苦手そうに食べていた", with: "1"
@@ -306,6 +327,8 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       page.driver.browser.manage.window.resize_to(width, 844)
       select classroom.name, from: "担当クラス"
       click_button "決定"
+      assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{classroom.name}）"
+      select (@classrooms - [ classroom ]).first.name, from: "担当クラス"
 
       assert_no_difference "Reaction.count" do
         click_button "登録"
@@ -313,6 +336,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       end
 
       assert_select "担当クラス", selected: classroom.name
+      assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{classroom.name}）"
       assert_field "美味しそうに食べていた", with: "0"
       assert_field "普通・どちらでもない", with: "0"
       assert_field "苦手そうに食べていた", with: "0"
@@ -337,6 +361,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     log_in
     select @classrooms.first.name, from: "担当クラス"
     click_button "決定"
+    assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
     fill_in "美味しそうに食べていた", with: "12"
 
     assert_no_difference "Reaction.count" do
@@ -347,6 +372,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     assert_equal original_attributes, reaction.reload.attributes
     assert_field "美味しそうに食べていた", with: "12"
     assert_select "担当クラス", selected: @classrooms.first.name
+    assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
     assert_no_selector "[role=status]"
   end
 
@@ -354,6 +380,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     log_in
     select @classrooms.first.name, from: "担当クラス"
     click_button "決定"
+    assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
     fill_in "美味しそうに食べていた", with: "1.5"
     fill_in "普通・どちらでもない", with: "3"
     fill_in "苦手そうに食べていた", with: "1"
@@ -368,6 +395,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     [ 390, 1280 ].each do |width|
       page.driver.browser.manage.window.resize_to(width, 844)
       assert_select "担当クラス", selected: @classrooms.first.name
+      assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
       assert_field "美味しそうに食べていた", with: "1.5"
       assert_field "普通・どちらでもない", with: "3"
       assert_field "苦手そうに食べていた", with: "1"
@@ -382,6 +410,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     log_in
     select @classrooms.first.name, from: "担当クラス"
     click_button "決定"
+    assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
     fill_in "美味しそうに食べていた", with: "12"
     @feedback_target.update!(dish: Dish.create!(name: "味噌汁", category: :soup))
 
@@ -392,6 +421,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
 
     assert_selector ".reaction-entry-dish", text: "対象料理：味噌汁（汁物）"
     assert_select "担当クラス", selected: "担当クラス"
+    assert_no_selector ".reaction-entry-loaded-classroom"
     assert_field "美味しそうに食べていた", with: "0"
     assert_field "普通・どちらでもない", with: "0"
     assert_field "苦手そうに食べていた", with: "0"
@@ -400,6 +430,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
 
     select @classrooms.first.name, from: "担当クラス"
     click_button "決定"
+    assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
     fill_in "普通・どちらでもない", with: "2"
     assert_difference "Reaction.count", 1 do
       click_button "登録"
@@ -419,13 +450,21 @@ class ReactionsTest < ActionDispatch::SystemTestCase
   end
 
   def assert_no_horizontal_overflow(width)
-    assert page.evaluate_script(<<~JS), "Reaction entry overflows at #{width}px"
-      document.documentElement.scrollWidth <= window.innerWidth &&
-      [...document.querySelectorAll('main .alert, main form, main select, main input[type=number], main input[type=submit]')].every(element => {
-        const rect = element.getBoundingClientRect();
-        return rect.left >= 0 && rect.right <= window.innerWidth && element.scrollWidth <= element.clientWidth;
-      })
+    overflows = page.evaluate_script(<<~JS)
+      (() => {
+        const overflows = [...document.querySelectorAll('main .alert, main form, main select, main input[type=number], main input[type=submit], .reaction-entry-loaded-classroom')].flatMap(element => {
+          const rect = element.getBoundingClientRect();
+          // ネイティブselectは長い選択肢を枠内で省略表示するため、描画枠の位置で検証する。
+          const contentFits = element.tagName === 'SELECT' || element.scrollWidth <= element.clientWidth;
+          return rect.left >= 0 && rect.right <= window.innerWidth && contentFits ? [] :
+            [{ element: element.id || element.className, left: rect.left, right: rect.right,
+               scrollWidth: element.scrollWidth, clientWidth: element.clientWidth }];
+        });
+        if (document.documentElement.scrollWidth > window.innerWidth) overflows.push({ element: 'document' });
+        return overflows;
+      })()
     JS
+    assert_empty overflows, "Reaction entry overflows at #{width}px"
   end
 
   def assert_registration_layout(width)
@@ -473,10 +512,12 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       (() => {
         const select = document.querySelector('#classroom_id');
         const selectRect = select.getBoundingClientRect();
+        const selectStyle = getComputedStyle(select);
         const button = document.querySelector('.reaction-entry-load');
         const rect = button.getBoundingClientRect();
         const style = getComputedStyle(button);
         return Math.abs(selectRect.width - 181) <= 1 && Math.abs(selectRect.height - 40) <= 1 &&
+          selectStyle.fontSize === '11px' &&
           Math.abs(rect.width - 135) <= 1 && Math.abs(rect.height - 40) <= 1 &&
           Math.abs(rect.left - selectRect.right - 10) <= 1 && Math.abs(rect.top - selectRect.top) <= 1 &&
           style.backgroundColor === 'rgb(237, 237, 237)' && style.color === 'rgb(31, 31, 31)' &&
@@ -491,6 +532,21 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     assert page.evaluate_script(<<~JS), "Reaction count inputs differ from the design or overlap at #{width}px"
       (() => {
         let previousRect = document.querySelector('#classroom_id').getBoundingClientRect();
+        let firstGap = 12;
+        const loadedClassroom = document.querySelector('.reaction-entry-loaded-classroom');
+        if (loadedClassroom) {
+          const rect = loadedClassroom.getBoundingClientRect();
+          const style = getComputedStyle(loadedClassroom);
+          if (Math.abs(rect.top - previousRect.bottom - 30) > 1 ||
+              style.fontSize !== '16px' || style.fontWeight !== '400' || style.lineHeight !== '20px' ||
+              style.color !== 'rgb(31, 31, 31)' || style.textDecorationLine !== 'none' ||
+              !style.fontFamily.includes('Noto Sans JP')) return false;
+          previousRect = rect;
+          firstGap = 6;
+        }
+        if (getComputedStyle(document.querySelector('main h2')).fontSize !== '22px' ||
+            getComputedStyle(document.querySelector('.reaction-entry-date')).fontSize !== '16px' ||
+            getComputedStyle(document.querySelector('.reaction-entry-dish')).fontSize !== '16px') return false;
         return [...document.querySelectorAll('.reaction-entry-count')].every(field => {
           const input = field.querySelector('input');
           const label = field.querySelector('label');
@@ -500,12 +556,12 @@ class ReactionsTest < ActionDispatch::SystemTestCase
           const labelStyle = getComputedStyle(label);
           const matches = Math.abs(rect.width - 326) <= 1 && Math.abs(rect.height - 40) <= 1 &&
             Math.abs((rect.left + rect.right) / 2 - document.documentElement.clientWidth / 2) <= 1 &&
-            Math.abs(rect.top - previousRect.bottom - 12) <= 1 &&
+            Math.abs(rect.top - previousRect.bottom - firstGap) <= 1 &&
             rect.left >= 0 && rect.right <= window.innerWidth &&
             labelRect.left >= rect.left && labelRect.right <= rect.left + parseFloat(style.paddingLeft) &&
             labelRect.top >= rect.top && labelRect.bottom <= rect.bottom &&
             style.backgroundColor === 'rgb(255, 255, 255)' && style.color === 'rgb(31, 31, 31)' &&
-            style.fontFamily.includes('Noto Sans JP') && style.fontSize === '11px' &&
+            style.fontFamily.includes('Noto Sans JP') && style.fontSize === '14px' &&
             style.fontWeight === '400' && style.textDecorationLine === 'none' &&
             labelStyle.color === style.color && labelStyle.fontSize === '11px' &&
             labelStyle.fontWeight === '400' && labelStyle.textDecorationLine === 'none' &&
@@ -516,6 +572,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
             ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].every(corner =>
               style['border' + corner + 'Radius'] === '0px');
           previousRect = rect;
+          firstGap = 12;
           return matches;
         });
       })()
