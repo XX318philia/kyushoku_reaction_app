@@ -311,13 +311,16 @@
   .reaction-results-count,
   .reaction-results-total {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    padding: 12px 11px;
+    row-gap: 4px;
+    padding: 11px;
     border: 1px solid #1f1f1f;
     font-size: 13px;
   }
 
   .reaction-results-count {
+    column-gap: 13px;
     min-height: 48px;
     margin: 0 0 12px;
     background-color: #fff;
@@ -326,7 +329,7 @@
   .reaction-results-total {
     min-height: 44px;
     margin: 20px 0 0;
-    padding: 11px;
+    padding: 9px 11px;
     background-color: #ededed;
   }
 
@@ -342,10 +345,14 @@
     }
   }
 
-  .reaction-results-constraint {
-    width: 100%;
-    margin: 38px 0 0 -1px;
-    font-size: 10px;
+  .reaction-results-label,
+  .reaction-results-value {
+    min-width: 0;
+  }
+
+  .reaction-results-value {
+    font-size: 16px;
+    line-height: 24px;
   }
 }
 

@@ -325,7 +325,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "[role=status]", text: "登録が成功しました"
     assert_select "h2", text: "本日の集計結果"
-    assert_select ".reaction-results-count", text: "美味しそうに食べていた　12人 / 75.0%"
+    assert_select ".reaction-results-count .reaction-results-value", text: "12人 / 75.0%"
     assert_select "main input, main select", count: 0
 
     get new_reaction_url
@@ -518,7 +518,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "[role=status]", text: "登録内容を更新しました"
     assert_select "h2", text: "本日の集計結果"
-    assert_select ".reaction-results-count", text: "美味しそうに食べていた　12人 / 75.0%"
+    assert_select ".reaction-results-count .reaction-results-value", text: "12人 / 75.0%"
     assert_select "main input, main select", count: 0
 
     get new_reaction_url
@@ -901,6 +901,16 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".reaction-results-unset-notice", count: 0
   end
 
+  test "results show the approved reload guidance and percentage note without the removed restriction note" do
+    get reactions_url
+
+    assert_select ".reaction-results-notes p", count: 2
+    assert_select ".reaction-results-notes p:first-child", text: "※ 最新の集計を確認したい場合は、ページを再読み込みしてください。"
+    assert_select ".reaction-results-notes p:last-child", text: "※ 3種類の割合の表示値を合計しても100.0%にならない場合がありますが、これは計算方法の不整合ではありません。"
+    assert_select ".reaction-results-constraint", count: 0
+    assert_select "main", text: /過去日閲覧はMVP対象外|ページを再読みしないと更新されません/, count: 0
+  end
+
   test "results show today's date and unset guidance without totals or another day's dish" do
     @feedback_target.update!(target_date: Date.yesterday)
     saved_reaction
@@ -987,10 +997,16 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
   def assert_results(values, total)
     labels = [ "美味しそうに食べていた", "普通・どちらでもない", "苦手そうに食べていた" ]
     assert_select ".reaction-results-count", count: 3
-    labels.zip(values).each do |label, value|
-      assert_select ".reaction-results-count", text: "#{label}　#{value}", count: 1
+    assert_select ".reaction-results-count" do |rows|
+      rows.zip(labels, values).each do |row, label, value|
+        assert_select row, ".reaction-results-label", text: label, count: 1
+        assert_select row, ".reaction-results-value", text: value, count: 1
+      end
     end
-    assert_select ".reaction-results-total", text: "観察対象人数：#{total}人", count: 1
+    assert_select ".reaction-results-total", count: 1 do
+      assert_select ".reaction-results-label", text: "観察対象人数：", count: 1
+      assert_select ".reaction-results-value", text: "#{total}人", count: 1
+    end
   end
 
   def saved_reaction(classroom: @classrooms.first, target: @feedback_target)

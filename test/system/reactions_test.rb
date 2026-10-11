@@ -627,20 +627,21 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         assert_selector "main h2", text: "本日の集計結果"
         assert_selector "main time", text: Date.current.strftime("%Y年%-m月%-d日")
         assert_selector ".reaction-results-dish", text: "対象料理：カレー"
-        assert_selector ".reaction-results-count", text: "美味しそうに食べていた　4人 / 44.4%"
-        assert_selector ".reaction-results-count", text: "普通・どちらでもない　2人 / 22.2%"
-        assert_selector ".reaction-results-count", text: "苦手そうに食べていた　3人 / 33.3%"
-        assert_selector ".reaction-results-total", text: "観察対象人数：9人"
-        assert_selector ".reaction-results-notes", text: "ページを再読みしないと更新されません。"
+        assert_result_row "美味しそうに食べていた", "4人 / 44.4%"
+        assert_result_row "普通・どちらでもない", "2人 / 22.2%"
+        assert_result_row "苦手そうに食べていた", "3人 / 33.3%"
+        assert_selector ".reaction-results-total .reaction-results-value", exact_text: "9人"
+        assert_selector ".reaction-results-notes p", exact_text: "※ 最新の集計を確認したい場合は、ページを再読み込みしてください。"
         assert_selector ".reaction-results-notes", text: "100.0%にならない場合があります"
-        assert_selector ".reaction-results-constraint", text: "※ 当日分のみ表示（過去日閲覧はMVP対象外）"
+        assert_no_selector ".reaction-results-constraint"
+        assert_no_selector "main", text: "※ 当日分のみ表示（過去日閲覧はMVP対象外）"
         assert_no_selector "main", text: "味噌汁"
         assert_no_selector "main input, main select, main form"
         assert_results_fit_viewport(width)
         assert_results_design(width)
         page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-results-#{width}.png"))
         page.refresh
-        assert_selector ".reaction-results-total", text: "観察対象人数：9人"
+        assert_selector ".reaction-results-total .reaction-results-value", exact_text: "9人"
         click_link "入力・編集"
         assert_current_path new_reaction_path
       end
@@ -649,17 +650,18 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     assert_equal original_targets, FeedbackTarget.order(:id).map(&:attributes)
 
     click_link "集計結果"
-    assert_selector ".reaction-results-total", text: "観察対象人数：9人"
+    assert_selector ".reaction-results-total .reaction-results-value", exact_text: "9人"
     reaction.update!(positive_count: 3)
-    assert_selector ".reaction-results-total", text: "観察対象人数：9人"
+    assert_selector ".reaction-results-total .reaction-results-value", exact_text: "9人"
     updated_reactions = Reaction.order(:id).map(&:attributes)
     page.refresh
-    assert_selector ".reaction-results-count", text: "美味しそうに食べていた　5人 / 50.0%"
-    assert_selector ".reaction-results-total", text: "観察対象人数：10人"
+    assert_result_row "美味しそうに食べていた", "5人 / 50.0%"
+    assert_selector ".reaction-results-total .reaction-results-value", exact_text: "10人"
+    assert_results_fit_viewport(1280)
     assert_equal updated_reactions, Reaction.order(:id).map(&:attributes)
   end
 
-  test "unset results and zero reaction results fit mobile and desktop widths and reload after target setting" do
+  test "unset results and zero and registered reaction counts fit mobile and desktop widths" do
     @feedback_target.destroy!
     log_in
     click_link "集計結果"
@@ -695,11 +697,24 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     assert_no_selector ".reaction-results-unset-notice"
     [ 390, 1280 ].each do |width|
       resize_results_viewport(width)
-      assert_selector ".reaction-results-count", text: "0人 / -", count: 3
-      assert_selector ".reaction-results-total", text: "観察対象人数：0人"
+      assert_selector ".reaction-results-count .reaction-results-value", exact_text: "0人 / -", count: 3
+      assert_selector ".reaction-results-total .reaction-results-value", exact_text: "0人"
       assert_results_fit_viewport(width)
       assert_results_design(width)
       page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-results-zero-#{width}.png"))
+    end
+
+    Reaction.create!(classroom: @classrooms.first, feedback_target: FeedbackTarget.find_by!(target_date: Date.current),
+      positive_count: 1, neutral_count: 10, negative_count: 0)
+    page.refresh
+    [ 390, 1280 ].each do |width|
+      resize_results_viewport(width)
+      assert_result_row "美味しそうに食べていた", "1人 / 9.1%"
+      assert_result_row "普通・どちらでもない", "10人 / 90.9%"
+      assert_result_row "苦手そうに食べていた", "0人 / 0.0%"
+      assert_results_fit_viewport(width)
+      assert_results_design(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-results-small-counts-#{width}.png"))
     end
   end
 
@@ -715,9 +730,9 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     [ 390, 1280 ].each do |width|
       resize_results_viewport(width)
       assert_selector ".reaction-results-dish", text: "鶏肉とたっぷり野菜のやさしいクリーム煮"
-      assert_selector ".reaction-results-count", text: "美味しそうに食べていた　4294967294人 / 100.0%"
-      assert_selector ".reaction-results-count", text: "0人 / 0.0%", count: 2
-      assert_selector ".reaction-results-total", text: "観察対象人数：4294967294人"
+      assert_result_row "美味しそうに食べていた", "4294967294人 / 100.0%"
+      assert_selector ".reaction-results-count .reaction-results-value", exact_text: "0人 / 0.0%", count: 2
+      assert_selector ".reaction-results-total .reaction-results-value", exact_text: "4294967294人"
       assert_results_fit_viewport(width)
       geometry = page.evaluate_script(<<~JS)
         (() => {
@@ -743,6 +758,13 @@ class ReactionsTest < ActionDispatch::SystemTestCase
 
   private
 
+  def assert_result_row(label, value)
+    within ".reaction-results-count", text: label do
+      assert_selector ".reaction-results-label", exact_text: label
+      assert_selector ".reaction-results-value", exact_text: value
+    end
+  end
+
   def resize_results_viewport(width)
     height = 844 + page.evaluate_script("window.outerHeight - window.innerHeight")
     page.driver.browser.manage.window.resize_to(width, height)
@@ -756,6 +778,20 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         return Math.abs(content.width - 326) <= 1 &&
           Math.abs((content.left + content.right) / 2 - document.documentElement.clientWidth / 2) <= 1 &&
           document.documentElement.scrollWidth <= window.innerWidth &&
+          [...document.querySelectorAll('.reaction-results-count, .reaction-results-total')].every(row => {
+            const label = row.querySelector('.reaction-results-label');
+            const value = row.querySelector('.reaction-results-value');
+            const labelRect = label.getBoundingClientRect();
+            const valueRect = value.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            return getComputedStyle(label).fontSize === '13px' && getComputedStyle(value).fontSize === '16px' &&
+              (valueRect.left >= labelRect.right || valueRect.top >= labelRect.bottom) &&
+              [label, value].every(element => {
+                const rect = element.getBoundingClientRect();
+                return rect.left >= rowRect.left && rect.right <= rowRect.right &&
+                  rect.top >= rowRect.top && rect.bottom <= rowRect.bottom && element.scrollWidth <= element.clientWidth;
+              });
+          }) &&
           [...document.querySelectorAll('main h2, main p, main .alert')].every(element => {
             const rect = element.getBoundingClientRect();
             return rect.left >= 0 && rect.right <= window.innerWidth && element.scrollWidth <= element.clientWidth;
@@ -774,7 +810,6 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         const date = main.querySelector('.reaction-results-date');
         const dish = main.querySelector('.reaction-results-dish');
         const notes = main.querySelector('.reaction-results-notes');
-        const constraint = main.querySelector('.reaction-results-constraint');
         const rows = [...main.querySelectorAll('.reaction-results-count, .reaction-results-total')];
         let previous = dish.getBoundingClientRect();
         return mainStyle.backgroundColor === 'rgb(255, 255, 255)' &&
@@ -784,8 +819,6 @@ class ReactionsTest < ActionDispatch::SystemTestCase
           Math.abs(date.getBoundingClientRect().top - heading.getBoundingClientRect().bottom - 19) <= 1 &&
           Math.abs(dish.getBoundingClientRect().top - date.getBoundingClientRect().bottom - 11) <= 1 &&
           getComputedStyle(notes).fontSize === '11px' && getComputedStyle(notes).color === 'rgb(0, 0, 0)' &&
-          getComputedStyle(constraint).fontSize === '10px' &&
-          Math.abs(constraint.getBoundingClientRect().top - notes.getBoundingClientRect().bottom - 38) <= 1 &&
           Math.abs(notes.getBoundingClientRect().top - rows[3].getBoundingClientRect().bottom - 11) <= 1 &&
           rows.every((row, index) => {
             const rect = row.getBoundingClientRect();

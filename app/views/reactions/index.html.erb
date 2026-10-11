@@ -18,17 +18,21 @@
 
       <% { positive: "美味しそうに食べていた", neutral: "普通・どちらでもない", negative: "苦手そうに食べていた" }.each do |type, label| %>
         <% percentage = @reaction_summary.fetch(:"#{type}_percentage") %>
-        <p class="reaction-results-count"><%= label %>　<%= @reaction_summary.fetch(:"#{type}_count") %>人 / <%= percentage.nil? ? "-" : number_to_percentage(percentage, precision: 1) %></p>
+        <p class="reaction-results-count">
+          <span class="reaction-results-label"><%= label %></span>
+          <span class="reaction-results-value"><%= @reaction_summary.fetch(:"#{type}_count") %>人 / <%= percentage.nil? ? "-" : number_to_percentage(percentage, precision: 1) %></span>
+        </p>
       <% end %>
 
-      <p class="reaction-results-total">観察対象人数：<%= @reaction_summary.fetch(:total_count) %>人</p>
+      <p class="reaction-results-total">
+        <span class="reaction-results-label">観察対象人数：</span>
+        <span class="reaction-results-value"><%= @reaction_summary.fetch(:total_count) %>人</span>
+      </p>
 
       <div class="reaction-results-notes">
-        <p>※ 集計結果は自動集計ですが、ページを再読みしないと更新されません。</p>
+        <p>※ 最新の集計を確認したい場合は、ページを再読み込みしてください。</p>
         <p>※ 3種類の割合の表示値を合計しても100.0%にならない場合がありますが、これは計算方法の不整合ではありません。</p>
       </div>
-
-      <p class="reaction-results-constraint">※ 当日分のみ表示（過去日閲覧はMVP対象外）</p>
     <% else %>
       <div class="reaction-results-unset-notice">
         <p>本日のフィードバック対象料理はまだ設定されていません。</p>
