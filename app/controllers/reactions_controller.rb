@@ -3,7 +3,11 @@ class ReactionsController < ApplicationController
   before_action :load_entry
 
   def new
-    @reaction = initial_reaction
+    @selected_classroom = @classrooms.find { |classroom| classroom.id.to_s == params[:classroom_id] }
+    @reaction = if @selected_classroom && @feedback_target
+      @selected_classroom.reactions.find_by(feedback_target: @feedback_target)
+    end
+    @reaction ||= initial_reaction
   end
 
   def create
