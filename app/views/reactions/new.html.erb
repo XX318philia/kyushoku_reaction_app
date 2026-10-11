@@ -5,7 +5,7 @@
 
 <main class="reaction-entry">
   <div class="reaction-entry-content mx-auto">
-    <h2 class="text-center">入力フォーム</h2>
+    <h2 class="text-center"><%= @reaction.persisted? ? "編集フォーム" : "入力フォーム" %></h2>
 
     <% if flash[:notice] %>
       <div class="alert alert-success" role="status"><%= flash[:notice] %></div>
@@ -35,6 +35,7 @@
 
       <%= form_with model: @reaction, url: reactions_path, method: :post do |form| %>
         <%= hidden_field_tag :displayed_target, @displayed_target %>
+        <%= hidden_field_tag :displayed_reaction, @displayed_reaction if @displayed_reaction %>
         <%= hidden_field_tag :classroom_id, @selected_classroom&.id, id: "loaded_classroom_id" %>
 
         <% if @selected_classroom %>
@@ -50,7 +51,7 @@
 
         <p class="reaction-entry-constraint">入力制約：0以上の整数</p>
 
-        <%= form.submit "登録", class: "btn w-100 reaction-entry-submit" %>
+        <%= form.submit(@reaction.persisted? ? "更新" : "登録", class: "btn w-100 reaction-entry-submit") %>
       <% end %>
     <% else %>
       <div class="reaction-entry-unset-notice">

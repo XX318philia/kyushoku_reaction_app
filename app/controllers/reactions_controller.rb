@@ -8,6 +8,7 @@ class ReactionsController < ApplicationController
       @selected_classroom.reactions.find_by(feedback_target: @feedback_target)
     end
     @reaction ||= initial_reaction
+    @displayed_reaction = Rails.application.message_verifier(:reaction_edit).generate(reaction_snapshot(@reaction)) if @reaction.persisted?
   end
 
   def create
@@ -22,10 +23,7 @@ class ReactionsController < ApplicationController
     end
 
     unless displayed_target_current?
-      @reaction = initial_reaction
-      @selected_classroom = nil
-      @reaction.errors.add(:base, "対象日または対象料理が変更されています。最新の情報を確認し、再入力してください。")
-      return render :new, status: :unprocessable_content
+      return render_stale_entry
     end
 
     unless @selected_classroom
@@ -33,10 +31,21 @@ class ReactionsController < ApplicationController
       return render :new, status: :unprocessable_content
     end
 
-    return render_already_registered if Reaction.exists?(classroom: @selected_classroom, feedback_target: @feedback_target)
+    existing_reaction = @selected_classroom.reactions.find_by(feedback_target: @feedback_target)
+    if params[:displayed_reaction].present?
+      return render_stale_entry unless existing_reaction && displayed_reaction_current?(existing_reaction)
 
+      @reaction = existing_reaction
+      @reaction.assign_attributes(reaction_params)
+      @displayed_reaction = params[:displayed_reaction]
+    elsif existing_reaction
+      return render_already_registered
+    end
+
+    updating = @reaction.persisted?
     if @reaction.save
-      redirect_to new_reaction_path, notice: "登録が成功しました", status: :see_other
+      notice = updating ? "登録内容を更新しました" : "登録が成功しました"
+      redirect_to new_reaction_path, notice: notice, status: :see_other
     elsif @reaction.errors.of_kind?(:classroom_id, :taken)
       render_already_registered
     else
@@ -69,6 +78,22 @@ class ReactionsController < ApplicationController
     token.is_a?(String) && Rails.application.message_verifier(:reaction_entry).verified(token) == target_snapshot
   end
 
+  def reaction_snapshot(reaction)
+    [ target_snapshot, reaction.classroom_id, reaction.id ]
+  end
+
+  def displayed_reaction_current?(reaction)
+    token = params[:displayed_reaction]
+    token.is_a?(String) && Rails.application.message_verifier(:reaction_edit).verified(token) == reaction_snapshot(reaction)
+  end
+
+  def render_stale_entry
+    @reaction = initial_reaction
+    @selected_classroom = nil
+    @reaction.errors.add(:base, "対象日または対象料理が変更されています。最新の情報を確認し、再入力してください。")
+    render :new, status: :unprocessable_content
+  end
+
   def render_already_registered
     @reaction.errors.clear
     @reaction.errors.add(:base, "このクラスの本日のリアクションは登録済みです。")
@@ -76,7 +101,8 @@ class ReactionsController < ApplicationController
   end
 
   def reaction_params
-    params.fetch(:reaction, ActionController::Parameters.new).permit(:positive_count, :neutral_count, :negative_count)
+    counts = params.fetch(:reaction, ActionController::Parameters.new).permit(:positive_count, :neutral_count, :negative_count)
+    %i[ positive_count neutral_count negative_count ].index_with { |attribute| counts[attribute] }
   end
 
   def require_kindergarten_user

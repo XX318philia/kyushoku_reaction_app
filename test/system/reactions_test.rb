@@ -95,6 +95,10 @@ class ReactionsTest < ActionDispatch::SystemTestCase
   test "long dish and class names fit mobile and desktop widths" do
     @feedback_target.dish.update!(name: "鶏肉とたっぷり野菜のやさしいクリーム煮", category: :fruit_or_dessert)
     @classrooms.first.update!(name: "ひまわり幼稚園の年少さんのさくらクラス")
+    reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+    original_id = reaction.id
+    original_created_at = reaction.created_at
     visit kindergarten_login_path
     fill_in "ログインID", with: @user.login_id
     fill_in "パスワード", with: "kindergarten-password"
@@ -108,6 +112,8 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       click_button "決定"
       assert_select "担当クラス", selected: @classrooms.first.name
       assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
+      assert_selector "main h2", text: "編集フォーム"
+      assert_button "更新"
       assert_no_horizontal_overflow(width)
       assert page.evaluate_script(<<~JS), "The long registration class name does not wrap"
         (() => {
@@ -123,7 +129,19 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       JS
       assert_reaction_count_layout(width)
       assert_registration_layout(width)
-      page.save_screenshot(Rails.root.join("tmp/screenshots/issue33-reactions-long-#{width}.png"))
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue34-reactions-long-#{width}.png"))
+      fill_in "美味しそうに食べていた", with: "12"
+      fill_in "普通・どちらでもない", with: "3"
+      fill_in "苦手そうに食べていた", with: "1"
+      assert_no_difference "Reaction.count" do
+        click_button "更新"
+        assert_selector "[role=status]", text: "登録内容を更新しました"
+      end
+      assert_equal [ 12, 3, 1 ], reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
+      assert_equal original_id, reaction.id
+      assert_equal original_created_at, reaction.created_at
+      assert_select "担当クラス", selected: "担当クラス"
+      assert_no_horizontal_overflow(width)
     end
   end
 
@@ -145,12 +163,12 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         assert_field "美味しそうに食べていた", with: "0"
         assert_field "普通・どちらでもない", with: "3"
         assert_field "苦手そうに食べていた", with: "1"
-        assert_selector "main h2", text: "入力フォーム"
-        assert_button "登録"
+        assert_selector "main h2", text: "編集フォーム"
+        assert_button "更新"
         assert_no_horizontal_overflow(width)
         assert_reaction_count_layout(width)
         assert_registration_layout(width)
-        page.save_screenshot(Rails.root.join("tmp/screenshots/issue33-reactions-saved-#{width}.png"))
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue34-reactions-saved-#{width}.png"))
 
         select @classrooms.last.name, from: "担当クラス"
         assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
@@ -164,6 +182,8 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         assert_field "美味しそうに食べていた", with: "2"
         assert_field "普通・どちらでもない", with: "0"
         assert_field "苦手そうに食べていた", with: "0"
+        assert_selector "main h2", text: "編集フォーム"
+        assert_button "更新"
 
         fill_in "苦手そうに食べていた", with: "5"
         select unregistered_classroom.name, from: "担当クラス"
@@ -172,6 +192,8 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         assert_field "美味しそうに食べていた", with: "0"
         assert_field "普通・どちらでもない", with: "0"
         assert_field "苦手そうに食べていた", with: "0"
+        assert_selector "main h2", text: "入力フォーム"
+        assert_button "登録"
 
         fill_in "普通・どちらでもない", with: "4"
         select "担当クラス", from: "担当クラス"
@@ -354,7 +376,136 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     end
   end
 
-  test "duplicate submission displays registered guidance without changing the existing counts" do
+  test "updates only the loaded class from mobile and desktop and resets the class selection" do
+    reactions = @classrooms.map do |classroom|
+      Reaction.create!(classroom: classroom, feedback_target: @feedback_target,
+        positive_count: 2, neutral_count: 1, negative_count: 0)
+    end
+    log_in
+
+    [ 390, 1280 ].zip(reactions).each do |width, reaction|
+      page.driver.browser.manage.window.resize_to(width, 844)
+      select reaction.classroom.name, from: "担当クラス"
+      click_button "決定"
+      assert_selector "main h2", text: "編集フォーム"
+      assert_button "更新"
+      assert_no_button "登録"
+      assert_field "美味しそうに食べていた", with: "2"
+      assert_field "普通・どちらでもない", with: "1"
+      assert_field "苦手そうに食べていた", with: "0"
+      assert_reaction_count_layout(width)
+      assert_registration_layout(width)
+      original_id = reaction.id
+      original_created_at = reaction.created_at
+      other_reaction = (reactions - [ reaction ]).first
+      other_attributes = other_reaction.reload.attributes
+
+      fill_in "美味しそうに食べていた", with: "12"
+      fill_in "普通・どちらでもない", with: "3"
+      fill_in "苦手そうに食べていた", with: "1"
+      select other_reaction.classroom.name, from: "担当クラス"
+      assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{reaction.classroom.name}）"
+      assert_no_difference "Reaction.count" do
+        click_button "更新"
+        assert_current_path new_reaction_path
+        assert_selector "[role=status]", text: "登録内容を更新しました"
+      end
+
+      assert_equal [ 12, 3, 1 ], reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
+      assert_equal original_id, reaction.id
+      assert_equal original_created_at, reaction.created_at
+      assert_equal other_attributes, other_reaction.reload.attributes
+      assert_select "担当クラス", selected: "担当クラス"
+      assert_no_selector ".reaction-entry-loaded-classroom"
+      assert_selector "main h2", text: "入力フォーム"
+      assert_button "登録"
+      assert_field "美味しそうに食べていた", with: "0"
+      assert_field "普通・どちらでもない", with: "0"
+      assert_field "苦手そうに食べていた", with: "0"
+      assert_no_horizontal_overflow(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue34-reactions-success-#{width}.png"))
+      visit new_reaction_path
+      assert_no_selector "[role=status]"
+    end
+  end
+
+  test "failed edits preserve the loaded class and inputs and can be corrected on mobile and desktop" do
+    reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+    log_in
+
+    [ 390, 1280 ].each do |width|
+      page.driver.browser.manage.window.resize_to(width, 844)
+      select reaction.classroom.name, from: "担当クラス"
+      click_button "決定"
+      original_attributes = reaction.reload.attributes
+      [ "0", "-1" ].each do |positive_count|
+        fill_in "美味しそうに食べていた", with: positive_count
+        fill_in "普通・どちらでもない", with: "0"
+        fill_in "苦手そうに食べていた", with: "0"
+        # 負数の送信もサーバー側で拒否し、編集状態が保持されることを確認する。
+        page.execute_script("document.querySelector('main form[method=post]').noValidate = true")
+
+        assert_no_difference "Reaction.count" do
+          click_button "更新"
+          message = positive_count == "0" ? "リアクション人数を1人以上入力してください" : "Positive count must be greater than or equal to 0"
+          assert_selector "[role=alert]", text: message
+        end
+        assert_equal original_attributes, reaction.reload.attributes
+        assert_select "担当クラス", selected: reaction.classroom.name
+        assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{reaction.classroom.name}）"
+        assert_selector "main h2", text: "編集フォーム"
+        assert_button "更新"
+        assert_field "美味しそうに食べていた", with: positive_count
+        assert_field "普通・どちらでもない", with: "0"
+        assert_field "苦手そうに食べていた", with: "0"
+        assert_no_horizontal_overflow(width)
+        assert_reaction_count_layout(width)
+        assert_registration_layout(width)
+      end
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue34-reactions-error-#{width}.png"))
+
+      fill_in "美味しそうに食べていた", with: "8"
+      assert_no_difference "Reaction.count" do
+        click_button "更新"
+        assert_selector "[role=status]", text: "登録内容を更新しました"
+      end
+      assert_equal [ 8, 0, 0 ], reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
+      visit new_reaction_path
+    end
+  end
+
+  test "an initial registration form cannot overwrite a competing registration" do
+    log_in
+    select @classrooms.first.name, from: "担当クラス"
+    click_button "決定"
+    assert_selector "main h2", text: "入力フォーム"
+    fill_in "美味しそうに食べていた", with: "12"
+    fill_in "普通・どちらでもない", with: "3"
+    fill_in "苦手そうに食べていた", with: "1"
+    reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+    original_attributes = reaction.attributes
+
+    assert_no_difference "Reaction.count" do
+      click_button "登録"
+      assert_selector "[role=alert]", text: "このクラスの本日のリアクションは登録済みです。"
+    end
+    assert_equal original_attributes, reaction.reload.attributes
+    assert_field "美味しそうに食べていた", with: "12"
+    assert_field "普通・どちらでもない", with: "3"
+    assert_field "苦手そうに食べていた", with: "1"
+    assert_select "担当クラス", selected: @classrooms.first.name
+    assert_selector "main h2", text: "入力フォーム"
+    assert_button "登録"
+
+    click_button "決定"
+    assert_selector "main h2", text: "編集フォーム"
+    assert_button "更新"
+    assert_field "美味しそうに食べていた", with: "2"
+  end
+
+  test "a registered class can be edited again after a successful update" do
     reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
       positive_count: 2, neutral_count: 1, negative_count: 0)
     original_attributes = reaction.attributes
@@ -365,14 +516,22 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     fill_in "美味しそうに食べていた", with: "12"
 
     assert_no_difference "Reaction.count" do
-      click_button "登録"
-      assert_selector "[role=alert]", text: "このクラスの本日のリアクションは登録済みです。"
+      click_button "更新"
+      assert_selector "[role=status]", text: "登録内容を更新しました"
     end
 
-    assert_equal original_attributes, reaction.reload.attributes
+    assert_equal [ 12, 1, 0 ], reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
+    assert_equal original_attributes["id"], reaction.id
+    assert_equal original_attributes["created_at"], reaction.created_at
+    select @classrooms.first.name, from: "担当クラス"
+    click_button "決定"
     assert_field "美味しそうに食べていた", with: "12"
+    assert_field "普通・どちらでもない", with: "1"
+    assert_field "苦手そうに食べていた", with: "0"
     assert_select "担当クラス", selected: @classrooms.first.name
     assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）"
+    assert_selector "main h2", text: "編集フォーム"
+    assert_button "更新"
     assert_no_selector "[role=status]"
   end
 
