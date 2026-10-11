@@ -27,7 +27,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       assert_select "header nav[aria-label=?]", "幼稚園用ナビゲーション" do
         assert_select "span", text: kindergarten.name
         assert_select "a[href=?]", new_reaction_path, text: "入力・編集", count: 1
-        assert_select "a[href='#']", text: "集計結果", count: 1
+        assert_select "a[href=?]", reactions_path, text: "集計結果", count: 1
         assert_select "button[aria-controls=kindergarten-menu-items][aria-expanded=false]"
         assert_select "a[href=?][data-turbo-method=delete].d-none.d-md-block", kindergarten_logout_path, text: "ログアウト", count: 1
         assert_select "#kindergarten-menu-items a[href=?][data-turbo-method=delete]", kindergarten_logout_path, text: "ログアウト", count: 1

@@ -140,6 +140,9 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       assert_equal [ 12, 3, 1 ], reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
       assert_equal original_id, reaction.id
       assert_equal original_created_at, reaction.created_at
+      assert_current_path reactions_path
+      assert_results_fit_viewport(width)
+      click_link "入力・編集"
       assert_select "担当クラス", selected: "担当クラス"
       assert_no_horizontal_overflow(width)
     end
@@ -311,7 +314,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     end
   end
 
-  test "registers from mobile and desktop and returns to the input page with a success message" do
+  test "registers from mobile and desktop and shows results with a success message" do
     log_in
 
     [ 390, 1280 ].zip(@classrooms).each do |width, classroom|
@@ -325,17 +328,17 @@ class ReactionsTest < ActionDispatch::SystemTestCase
 
       assert_difference "Reaction.count", 1 do
         click_button "登録"
-        assert_current_path new_reaction_path
+        assert_current_path reactions_path
         assert_selector ".alert.alert-success[role=status]", text: "登録が成功しました"
       end
 
       reaction = Reaction.find_by!(classroom: classroom, feedback_target: @feedback_target)
       assert_equal [ 12, 3, 1 ], reaction.attributes.values_at("positive_count", "neutral_count", "negative_count")
-      assert_select "担当クラス", selected: "担当クラス"
-      assert_field "美味しそうに食べていた", with: "0"
+      assert_selector "main h2", text: "本日の集計結果"
+      assert_no_selector "main input, main select"
       assert_no_selector "[role=alert]"
-      assert_no_horizontal_overflow(width)
-      page.save_screenshot(Rails.root.join("tmp/screenshots/issue32-reactions-success-#{width}.png"))
+      assert_results_fit_viewport(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-registration-#{width}.png"))
 
       visit new_reaction_path
       assert_no_selector "[role=status]"
@@ -376,7 +379,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     end
   end
 
-  test "updates only the loaded class from mobile and desktop and resets the class selection" do
+  test "updates only the loaded class from mobile and desktop and shows results" do
     reactions = @classrooms.map do |classroom|
       Reaction.create!(classroom: classroom, feedback_target: @feedback_target,
         positive_count: 2, neutral_count: 1, negative_count: 0)
@@ -407,7 +410,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       assert_selector ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{reaction.classroom.name}）"
       assert_no_difference "Reaction.count" do
         click_button "更新"
-        assert_current_path new_reaction_path
+        assert_current_path reactions_path
         assert_selector "[role=status]", text: "登録内容を更新しました"
       end
 
@@ -415,16 +418,14 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       assert_equal original_id, reaction.id
       assert_equal original_created_at, reaction.created_at
       assert_equal other_attributes, other_reaction.reload.attributes
+      assert_selector "main h2", text: "本日の集計結果"
+      assert_no_selector "main input, main select"
+      assert_results_fit_viewport(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-update-#{width}.png"))
+      click_link "入力・編集"
       assert_select "担当クラス", selected: "担当クラス"
-      assert_no_selector ".reaction-entry-loaded-classroom"
       assert_selector "main h2", text: "入力フォーム"
-      assert_button "登録"
       assert_field "美味しそうに食べていた", with: "0"
-      assert_field "普通・どちらでもない", with: "0"
-      assert_field "苦手そうに食べていた", with: "0"
-      assert_no_horizontal_overflow(width)
-      page.save_screenshot(Rails.root.join("tmp/screenshots/issue34-reactions-success-#{width}.png"))
-      visit new_reaction_path
       assert_no_selector "[role=status]"
     end
   end
@@ -523,6 +524,8 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     assert_equal [ 12, 1, 0 ], reaction.reload.attributes.values_at("positive_count", "neutral_count", "negative_count")
     assert_equal original_attributes["id"], reaction.id
     assert_equal original_attributes["created_at"], reaction.created_at
+    assert_current_path reactions_path
+    click_link "入力・編集"
     select @classrooms.first.name, from: "担当クラス"
     click_button "決定"
     assert_field "美味しそうに食べていた", with: "12"
@@ -598,7 +601,241 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     assert_equal @feedback_target, Reaction.last.feedback_target
   end
 
+  test "header results show all kindergartens and update on reload without writing data at mobile and desktop widths" do
+    reaction = Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+    Reaction.create!(classroom: @classrooms.last, feedback_target: @feedback_target,
+      positive_count: 1, neutral_count: 1, negative_count: 1)
+    other_classroom = Kindergarten.create!(name: "ひまわり幼稚園").classrooms.create!(name: "年少")
+    Reaction.create!(classroom: other_classroom, feedback_target: @feedback_target,
+      positive_count: 1, neutral_count: 0, negative_count: 2)
+    past_target = FeedbackTarget.create!(dish: Dish.create!(name: "味噌汁", category: :soup), target_date: Date.yesterday)
+    Reaction.create!(classroom: @classrooms.first, feedback_target: past_target,
+      positive_count: 99, neutral_count: 99, negative_count: 99)
+    original_reactions = Reaction.order(:id).map(&:attributes)
+    original_targets = FeedbackTarget.order(:id).map(&:attributes)
+    log_in
+    select @classrooms.first.name, from: "担当クラス"
+    click_button "決定"
+
+    assert_no_difference "Reaction.count" do
+      [ 390, 1280 ].each do |width|
+        resize_results_viewport(width)
+        click_link "集計結果"
+        assert_current_path reactions_path
+        assert_noto_sans_jp_loaded
+        assert_selector "main h2", text: "本日の集計結果"
+        assert_selector "main time", text: Date.current.strftime("%Y年%-m月%-d日")
+        assert_selector ".reaction-results-dish", text: "対象料理：カレー"
+        assert_result_row "美味しそうに食べていた", "4人 / 44.4%"
+        assert_result_row "普通・どちらでもない", "2人 / 22.2%"
+        assert_result_row "苦手そうに食べていた", "3人 / 33.3%"
+        assert_selector ".reaction-results-total .reaction-results-value", exact_text: "9人"
+        assert_selector ".reaction-results-notes p", exact_text: "※ 最新の集計を確認したい場合は、ページを再読み込みしてください。"
+        assert_selector ".reaction-results-notes", text: "100.0%にならない場合があります"
+        assert_no_selector ".reaction-results-constraint"
+        assert_no_selector "main", text: "※ 当日分のみ表示（過去日閲覧はMVP対象外）"
+        assert_no_selector "main", text: "味噌汁"
+        assert_no_selector "main input, main select, main form"
+        assert_results_fit_viewport(width)
+        assert_results_design(width)
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-results-#{width}.png"))
+        page.refresh
+        assert_selector ".reaction-results-total .reaction-results-value", exact_text: "9人"
+        click_link "入力・編集"
+        assert_current_path new_reaction_path
+      end
+    end
+    assert_equal original_reactions, Reaction.order(:id).map(&:attributes)
+    assert_equal original_targets, FeedbackTarget.order(:id).map(&:attributes)
+
+    click_link "集計結果"
+    assert_selector ".reaction-results-total .reaction-results-value", exact_text: "9人"
+    reaction.update!(positive_count: 3)
+    assert_selector ".reaction-results-total .reaction-results-value", exact_text: "9人"
+    updated_reactions = Reaction.order(:id).map(&:attributes)
+    page.refresh
+    assert_result_row "美味しそうに食べていた", "5人 / 50.0%"
+    assert_selector ".reaction-results-total .reaction-results-value", exact_text: "10人"
+    assert_results_fit_viewport(1280)
+    assert_equal updated_reactions, Reaction.order(:id).map(&:attributes)
+  end
+
+  test "unset results and zero and registered reaction counts fit mobile and desktop widths" do
+    @feedback_target.destroy!
+    log_in
+    click_link "集計結果"
+
+    [ 390, 1280 ].each do |width|
+      resize_results_viewport(width)
+      assert_current_path reactions_path
+      assert_noto_sans_jp_loaded
+      assert_selector "main h2", text: "本日の集計結果"
+      assert_selector "main time", text: Date.current.strftime("%Y年%-m月%-d日")
+      assert_selector ".reaction-results-unset-notice p", count: 2
+      assert_selector ".reaction-results-unset-notice", text: "本日のフィードバック対象料理はまだ設定されていません。"
+      assert_selector ".reaction-results-unset-notice", text: "本日の集計結果を確認できるようになります。"
+      assert_no_selector ".reaction-results-count, .reaction-results-total, .reaction-results-dish"
+      assert_results_fit_viewport(width)
+      assert page.evaluate_script(<<~JS), "Unset results differ from Figma at #{width}px"
+        (() => {
+          const heading = document.querySelector('main h2').getBoundingClientRect();
+          const date = document.querySelector('.reaction-results-date').getBoundingClientRect();
+          const notice = document.querySelector('.reaction-results-unset-notice');
+          const style = getComputedStyle(notice);
+          return Math.abs(date.top - heading.bottom - 35) <= 1 &&
+            Math.abs(notice.getBoundingClientRect().top - date.bottom - 37) <= 1 &&
+            style.fontSize === '15px' && style.color === 'rgb(0, 0, 0)' &&
+            style.fontWeight === '400' && style.textDecorationLine === 'none';
+        })()
+      JS
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-results-unset-#{width}.png"))
+    end
+
+    FeedbackTarget.create!(dish: @feedback_target.dish, target_date: Date.current)
+    page.refresh
+    assert_no_selector ".reaction-results-unset-notice"
+    [ 390, 1280 ].each do |width|
+      resize_results_viewport(width)
+      assert_selector ".reaction-results-count .reaction-results-value", exact_text: "0人 / -", count: 3
+      assert_selector ".reaction-results-total .reaction-results-value", exact_text: "0人"
+      assert_results_fit_viewport(width)
+      assert_results_design(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-results-zero-#{width}.png"))
+    end
+
+    Reaction.create!(classroom: @classrooms.first, feedback_target: FeedbackTarget.find_by!(target_date: Date.current),
+      positive_count: 1, neutral_count: 10, negative_count: 0)
+    page.refresh
+    [ 390, 1280 ].each do |width|
+      resize_results_viewport(width)
+      assert_result_row "美味しそうに食べていた", "1人 / 9.1%"
+      assert_result_row "普通・どちらでもない", "10人 / 90.9%"
+      assert_result_row "苦手そうに食べていた", "0人 / 0.0%"
+      assert_results_fit_viewport(width)
+      assert_results_design(width)
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-results-small-counts-#{width}.png"))
+    end
+  end
+
+  test "long dish names and large totals wrap without overlapping at mobile and desktop widths" do
+    @feedback_target.dish.update!(name: "鶏肉とたっぷり野菜のやさしいクリーム煮")
+    @classrooms.each do |classroom|
+      Reaction.create!(classroom: classroom, feedback_target: @feedback_target,
+        positive_count: 2_147_483_647, neutral_count: 0, negative_count: 0)
+    end
+    log_in
+    click_link "集計結果"
+
+    [ 390, 1280 ].each do |width|
+      resize_results_viewport(width)
+      assert_selector ".reaction-results-dish", text: "鶏肉とたっぷり野菜のやさしいクリーム煮"
+      assert_result_row "美味しそうに食べていた", "4294967294人 / 100.0%"
+      assert_selector ".reaction-results-count .reaction-results-value", exact_text: "0人 / 0.0%", count: 2
+      assert_selector ".reaction-results-total .reaction-results-value", exact_text: "4294967294人"
+      assert_results_fit_viewport(width)
+      geometry = page.evaluate_script(<<~JS)
+        (() => {
+          const elements = [...document.querySelectorAll('.reaction-results-dish, .reaction-results-count, .reaction-results-total, .reaction-results-notes')];
+          return elements.map((element, index) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            const range = document.createRange();
+            if (index > 0) range.selectNodeContents(elements[index - 1]);
+            const previousBottom = index === 0 ? null : Math.max(elements[index - 1].getBoundingClientRect().bottom,
+              ...[...range.getClientRects()].map(textRect => textRect.bottom));
+            return { element: element.className,
+              clipped: ['hidden', 'clip'].includes(style.overflowY) && element.scrollHeight > element.clientHeight,
+              gap: index === 0 ? null : rect.top - previousBottom };
+          });
+        })()
+      JS
+      assert geometry.all? { |rect| !rect["clipped"] && (rect["gap"].nil? || rect["gap"] >= 0) },
+        "Long result text is clipped or overlaps at #{width}px: #{geometry.inspect}"
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue36-reactions-results-long-#{width}.png"))
+    end
+  end
+
   private
+
+  def assert_result_row(label, value)
+    within ".reaction-results-count", text: label do
+      assert_selector ".reaction-results-label", exact_text: label
+      assert_selector ".reaction-results-value", exact_text: value
+    end
+  end
+
+  def resize_results_viewport(width)
+    height = 844 + page.evaluate_script("window.outerHeight - window.innerHeight")
+    page.driver.browser.manage.window.resize_to(width, height)
+    assert_equal [ width, 844 ], page.evaluate_script("[window.innerWidth, window.innerHeight]")
+  end
+
+  def assert_results_fit_viewport(width)
+    assert page.evaluate_script(<<~JS), "Results overflow or lose centered content at #{width}px"
+      (() => {
+        const content = document.querySelector('.reaction-results-content').getBoundingClientRect();
+        return Math.abs(content.width - 326) <= 1 &&
+          Math.abs((content.left + content.right) / 2 - document.documentElement.clientWidth / 2) <= 1 &&
+          document.documentElement.scrollWidth <= window.innerWidth &&
+          [...document.querySelectorAll('.reaction-results-count, .reaction-results-total')].every(row => {
+            const label = row.querySelector('.reaction-results-label');
+            const value = row.querySelector('.reaction-results-value');
+            const labelRect = label.getBoundingClientRect();
+            const valueRect = value.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            return getComputedStyle(label).fontSize === '13px' && getComputedStyle(value).fontSize === '16px' &&
+              (valueRect.left >= labelRect.right || valueRect.top >= labelRect.bottom) &&
+              [label, value].every(element => {
+                const rect = element.getBoundingClientRect();
+                return rect.left >= rowRect.left && rect.right <= rowRect.right &&
+                  rect.top >= rowRect.top && rect.bottom <= rowRect.bottom && element.scrollWidth <= element.clientWidth;
+              });
+          }) &&
+          [...document.querySelectorAll('main h2, main p, main .alert')].every(element => {
+            const rect = element.getBoundingClientRect();
+            return rect.left >= 0 && rect.right <= window.innerWidth && element.scrollWidth <= element.clientWidth;
+          });
+      })()
+    JS
+  end
+
+  def assert_results_design(width)
+    assert page.evaluate_script(<<~JS), "Results differ from the Figma typography, borders or spacing at #{width}px"
+      (() => {
+        const main = document.querySelector('main');
+        const mainStyle = getComputedStyle(main);
+        const heading = main.querySelector('h2');
+        const headingStyle = getComputedStyle(heading);
+        const date = main.querySelector('.reaction-results-date');
+        const dish = main.querySelector('.reaction-results-dish');
+        const notes = main.querySelector('.reaction-results-notes');
+        const rows = [...main.querySelectorAll('.reaction-results-count, .reaction-results-total')];
+        let previous = dish.getBoundingClientRect();
+        return mainStyle.backgroundColor === 'rgb(255, 255, 255)' &&
+          mainStyle.color === 'rgb(31, 31, 31)' && mainStyle.fontFamily.includes('Noto Sans JP') &&
+          headingStyle.fontSize === '22px' && headingStyle.fontWeight === '400' &&
+          getComputedStyle(date).fontSize === '16px' && getComputedStyle(dish).fontSize === '16px' &&
+          Math.abs(date.getBoundingClientRect().top - heading.getBoundingClientRect().bottom - 19) <= 1 &&
+          Math.abs(dish.getBoundingClientRect().top - date.getBoundingClientRect().bottom - 11) <= 1 &&
+          getComputedStyle(notes).fontSize === '11px' && getComputedStyle(notes).color === 'rgb(0, 0, 0)' &&
+          Math.abs(notes.getBoundingClientRect().top - rows[3].getBoundingClientRect().bottom - 11) <= 1 &&
+          rows.every((row, index) => {
+            const rect = row.getBoundingClientRect();
+            const style = getComputedStyle(row);
+            const matches = Math.abs(rect.width - 326) <= 1 && Math.abs(rect.height - (index === 3 ? 44 : 48)) <= 1 &&
+              Math.abs(rect.top - previous.bottom - (index === 3 ? 20 : 12)) <= 1 &&
+              style.fontSize === '13px' && style.fontWeight === '400' && style.color === 'rgb(31, 31, 31)' &&
+              style.textDecorationLine === 'none' &&
+              style.backgroundColor === (index === 3 ? 'rgb(237, 237, 237)' : 'rgb(255, 255, 255)') &&
+              ['Top', 'Right', 'Bottom', 'Left'].every(side => style['border' + side + 'Width'] === '1px' &&
+                style['border' + side + 'Style'] === 'solid' && style['border' + side + 'Color'] === 'rgb(31, 31, 31)');
+            previous = rect;
+            return matches;
+          });
+      })()
+    JS
+  end
 
   def log_in
     visit kindergarten_login_path
