@@ -36,7 +36,7 @@ class TermsTest < ActionDispatch::SystemTestCase
     assert_selector "header", count: 1
     assert_selector "footer", count: 1
     within "footer" do
-      assert_link "プライバシーポリシー", href: "#"
+      assert_link "プライバシーポリシー", href: privacy_policy_path
     end
 
     visit terms_path

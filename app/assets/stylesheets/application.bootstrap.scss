@@ -52,7 +52,8 @@
   border-top: 1px solid #d1d1d1;
 }
 
-.terms-page {
+.terms-page,
+.privacy-policy-page {
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -73,7 +74,8 @@
   }
 }
 
-.terms-body {
+.terms-body,
+.privacy-policy-body {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -88,14 +90,16 @@
   }
 }
 
-.terms-navigation {
+.terms-navigation,
+.privacy-policy-navigation {
   display: flex;
   flex-shrink: 0;
   justify-content: center;
   gap: 14px;
 }
 
-.terms-navigation-button {
+.terms-navigation-button,
+.privacy-policy-navigation-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -114,18 +118,21 @@
   text-decoration: none;
 }
 
-.terms-navigation--kindergarten .terms-navigation-button {
+.terms-navigation--kindergarten .terms-navigation-button,
+.privacy-policy-navigation--kindergarten .privacy-policy-navigation-button {
   flex: 1;
 }
 
-.terms-navigation--center {
+.terms-navigation--center,
+.privacy-policy-navigation--center {
   flex-direction: column;
   align-items: center;
 }
 
 // 261pxの3ボタン、14pxの2間隔、左右の余白と枠線が収まる幅。
 @media (min-width: 861px) {
-  .terms-navigation--center {
+  .terms-navigation--center,
+  .privacy-policy-navigation--center {
     flex-direction: row;
   }
 }
