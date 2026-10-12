@@ -52,6 +52,84 @@
   border-top: 1px solid #d1d1d1;
 }
 
+.terms-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 100vh;
+  padding: 76px 24px 43px;
+  border: 1px solid #1f1f1f;
+  background-color: #fff;
+  color: #1f1f1f;
+  font-family: "Noto Sans JP", sans-serif;
+  font-weight: normal;
+  overflow-wrap: anywhere;
+
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: normal;
+    line-height: 29px;
+  }
+}
+
+.terms-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 23.2px;
+  padding: 18px;
+  border: 1px solid #1f1f1f;
+  font-size: 13px;
+  line-height: 16px;
+
+  p {
+    margin: 0;
+  }
+}
+
+.terms-navigation {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  gap: 14px;
+}
+
+.terms-navigation-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 261px;
+  min-width: 0;
+  height: 65px;
+  padding: 10px 12px;
+  border: 1px solid #1f1f1f;
+  border-radius: 0;
+  background-color: #ededed;
+  color: #000;
+  font-size: 20px;
+  line-height: 24px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.terms-navigation--kindergarten .terms-navigation-button {
+  flex: 1;
+}
+
+.terms-navigation--center {
+  flex-direction: column;
+  align-items: center;
+}
+
+// 261pxの3ボタン、14pxの2間隔、左右の余白と枠線が収まる幅。
+@media (min-width: 861px) {
+  .terms-navigation--center {
+    flex-direction: row;
+  }
+}
+
 .dish-registration {
   padding: 163px 24px 48px;
   background-color: #fff;

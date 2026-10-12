@@ -6,7 +6,23 @@ class ApplicationLayoutTest < ActionView::TestCase
 
     assert_select "header", count: 0
     assert_select "main", text: "利用規約"
-    assert_select "footer a[href='#']", text: "利用規約"
+    assert_select "footer a[href=?]", terms_path, text: "利用規約"
     assert_select "footer a[href='#']", text: "プライバシーポリシー"
+  end
+
+  test "a page can omit the footer while retaining the shared header" do
+    view.define_singleton_method(:logged_in?) { false }
+    render inline: "<% content_for :hide_footer, true %><main>本文</main>", layout: "layouts/application"
+
+    assert_select "header h1", text: "給食リアクション", count: 1
+    assert_select "main", text: "本文"
+    assert_select "footer", count: 0
+  end
+
+  test "a page can omit both the shared header and footer" do
+    render inline: "<% content_for :hide_header, true %><% content_for :hide_footer, true %><main>本文</main>", layout: "layouts/application"
+
+    assert_select "header, footer", count: 0
+    assert_select "main", text: "本文"
   end
 end

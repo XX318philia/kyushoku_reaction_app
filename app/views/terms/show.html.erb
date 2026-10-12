@@ -1,0 +1,32 @@
+<% content_for :title, "利用規約 | 給食リアクション" %>
+<% content_for :hide_header, true %>
+<% content_for :hide_footer, true %>
+<% content_for :head do %>
+  <%= stylesheet_link_tag "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&display=swap", "data-turbo-track": "dynamic" %>
+<% end %>
+
+<main class="terms-page">
+  <h1>利用規約</h1>
+
+  <div class="terms-body">
+    <p>本文領域（ダミーテキスト）</p>
+    <p>利用規約の本文は別タスクで作成します。</p>
+  </div>
+
+  <% if kindergarten_user? %>
+    <nav class="terms-navigation terms-navigation--kindergarten" aria-label="利用規約ページナビゲーション">
+      <%= link_to "入力・編集", new_reaction_path, class: "terms-navigation-button" %>
+      <%= link_to "集計結果", reactions_path, class: "terms-navigation-button" %>
+    </nav>
+  <% elsif center_user? %>
+    <nav class="terms-navigation terms-navigation--center" aria-label="利用規約ページナビゲーション">
+      <%= link_to "集計結果", center_reaction_results_path, class: "terms-navigation-button" %>
+      <%= link_to "対象料理設定", new_feedback_target_path, class: "terms-navigation-button" %>
+      <%= link_to "料理マスタ登録", new_dish_path, class: "terms-navigation-button" %>
+    </nav>
+  <% else %>
+    <nav class="terms-navigation" aria-label="利用規約ページナビゲーション">
+      <%= link_to "TOP", root_path, class: "terms-navigation-button" %>
+    </nav>
+  <% end %>
+</main>
