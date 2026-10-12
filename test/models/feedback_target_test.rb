@@ -40,6 +40,65 @@ class FeedbackTargetTest < ActiveSupport::TestCase
     assert_equal [ first_reaction, second_reaction ], @feedback_target.reload.reactions.order(:classroom_id).to_a
   end
 
+  test "destroy removes dependent reactions while retaining other targets and master records" do
+    @feedback_target.save!
+    classroom = create_summary_classroom
+    other_classroom = classroom.kindergarten.classrooms.create!(name: "すみれ組")
+    [ classroom, other_classroom ].each do |item|
+      Reaction.create!(classroom: item, feedback_target: @feedback_target,
+        positive_count: 1, neutral_count: 0, negative_count: 0)
+    end
+    other_target = FeedbackTarget.create!(dish: @dish, target_date: @feedback_target.target_date - 1.day)
+    other_reaction = Reaction.create!(classroom: classroom, feedback_target: other_target,
+      positive_count: 0, neutral_count: 1, negative_count: 0)
+    retained_data = [ Dish, Kindergarten, Classroom ].map { |model| model.order(:id).map(&:attributes) }
+
+    assert_difference "FeedbackTarget.count", -1 do
+      assert_difference "Reaction.count", -2 do
+        assert @feedback_target.destroy
+      end
+    end
+
+    assert @feedback_target.destroyed?
+    assert_equal other_target, FeedbackTarget.find(other_target.id)
+    assert_equal other_reaction, Reaction.find(other_reaction.id)
+    assert_equal retained_data, [ Dish, Kindergarten, Classroom ].map { |model| model.order(:id).map(&:attributes) }
+  end
+
+  test "destroy succeeds without reactions" do
+    @feedback_target.save!
+
+    assert_difference "FeedbackTarget.count", -1 do
+      assert_no_difference "Reaction.count" do
+        assert @feedback_target.destroy
+      end
+    end
+    assert Dish.exists?(@dish.id)
+  end
+
+  test "a dependent destroy abort rolls back already destroyed reactions" do
+    @feedback_target.save!
+    classroom = create_summary_classroom
+    other_classroom = classroom.kindergarten.classrooms.create!(name: "すみれ組")
+    reactions = [ classroom, other_classroom ].map do |item|
+      Reaction.create!(classroom: item, feedback_target: @feedback_target,
+        positive_count: 1, neutral_count: 0, negative_count: 0)
+    end
+    original_data = reactions.map(&:attributes)
+    callback = -> { throw :abort if id == reactions.last.id }
+    Reaction.set_callback(:destroy, :before, callback)
+    begin
+      assert_no_difference [ "FeedbackTarget.count", "Reaction.count" ] do
+        assert_not @feedback_target.destroy
+      end
+    ensure
+      Reaction.skip_callback(:destroy, :before, callback)
+    end
+
+    assert_equal original_data, Reaction.where(feedback_target: @feedback_target).order(:id).map(&:attributes)
+    assert FeedbackTarget.exists?(@feedback_target.id)
+  end
+
   test "summarizes counts and percentages across kindergartens and classrooms" do
     @feedback_target.save!
     kindergarten = Kindergarten.create!(name: "さくら幼稚園")

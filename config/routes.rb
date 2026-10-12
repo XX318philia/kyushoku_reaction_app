@@ -22,6 +22,8 @@ Rails.application.routes.draw do
   get "center/reaction_results", to: "center_reaction_results#index", as: :center_reaction_results
 
   resources :dishes, only: [ :new, :create ]
-  resources :feedback_targets, only: [ :new, :create ]
+  resources :feedback_targets, only: [ :new, :create, :destroy ] do
+    get :confirm_destroy, on: :member
+  end
   resources :reactions, only: [ :index, :new, :create ]
 end

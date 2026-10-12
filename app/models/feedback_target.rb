@@ -1,6 +1,6 @@
 class FeedbackTarget < ApplicationRecord
   belongs_to :dish
-  has_many :reactions
+  has_many :reactions, dependent: :destroy
 
   validates :target_date, presence: true, uniqueness: true
 
