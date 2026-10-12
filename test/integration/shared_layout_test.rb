@@ -158,6 +158,30 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "the shared footer opens terms for logged out users and both roles without affecting the next page" do
+    kindergarten_user = User.create!(login_id: "TermsKindergarten", password: "layout-password", role: :kindergarten,
+      kindergarten: Kindergarten.create!(name: "さくら幼稚園"))
+    center_user = User.create!(login_id: "TermsCenter", password: "layout-password", role: :center)
+
+    [ [ nil, nil ], [ kindergarten_user, kindergarten_login_path ], [ center_user, center_login_path ] ].each do |user, login_path|
+      post login_path, params: { login_id: user.login_id, password: "layout-password" } if user
+      get root_path
+      assert_shared_footer
+
+      get terms_path
+
+      assert_response :success
+      assert_select "main h1", text: "利用規約", count: 1
+      assert_select "header, footer", count: 0
+
+      get root_path
+
+      assert_response :success
+      assert_select "header", count: 1
+      assert_shared_footer
+    end
+  end
+
   private
 
   def shared_pages
@@ -166,7 +190,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
 
   def assert_shared_footer
     assert_select "footer", count: 1
-    assert_select "footer a[href='#']", text: "利用規約", count: 1
+    assert_select "footer a[href=?]", terms_path, text: "利用規約", count: 1
     assert_select "footer a[href='#']", text: "プライバシーポリシー", count: 1
   end
 end
