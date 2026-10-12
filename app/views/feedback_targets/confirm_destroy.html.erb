@@ -8,9 +8,8 @@
     <p class="feedback-target-cancellation-date">対象日：<time datetime="<%= @target_date.iso8601 %>"><%= @target_date.strftime("%Y年%-m月%-d日") %></time></p>
 
     <% category_labels = { "main_dish" => "主菜", "side_dish" => "副菜", "soup" => "汁物", "fruit_or_dessert" => "フルーツ・デザート" } %>
+    <p class="feedback-target-cancellation-dish">対象料理：<%= @feedback_target.dish.name %>（<%= category_labels.fetch(@feedback_target.dish.category) %>）</p>
     <div class="feedback-target-cancellation-warning">
-      <p>対象料理：<%= @feedback_target.dish.name %>（<%= category_labels.fetch(@feedback_target.dish.category) %>）</p>
-      <p>本当に、本日のフィードバック対象料理の設定を取り消しますか？</p>
       <p>本日の対象料理とリアクション記録が削除されます。</p>
       <p>料理マスタは削除されません。</p>
       <p>この操作は元に戻せません。</p>

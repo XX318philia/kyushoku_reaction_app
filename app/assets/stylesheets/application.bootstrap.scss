@@ -181,20 +181,32 @@
   }
 
   .feedback-target-setting-date {
-    margin: 0 0 45px;
-    line-height: 29px;
+    margin: 0 0 10px;
+    font-size: 22px;
+    line-height: 27px;
+  }
+
+  .feedback-target-setting-dish {
+    max-width: 333px;
+    margin: 0 0 50px;
+    padding-right: 1em;
+    color: #000;
+    font-size: 20px;
+    line-height: 24px;
   }
 
   .feedback-target-setting-state {
     max-width: 774px;
     color: #000;
+    font-size: 18px;
+    line-height: 22px;
 
     p {
       margin: 0;
     }
 
     p + p {
-      margin-top: 19px;
+      margin-top: 22px;
     }
   }
 
@@ -203,7 +215,7 @@
     width: 100%;
     max-width: 488px;
     min-height: 48px;
-    margin: 45px 0 0;
+    margin: 67px 0 0;
     margin-left: max(0px, calc((100% - 488px) / 2 - 13px));
     padding: 12px;
     border: 1px solid #1f1f1f;
@@ -227,20 +239,31 @@
   line-height: 29px;
 
   .feedback-target-cancellation-date {
-    margin: 0 0 42px;
+    margin: 0 0 10px;
     font-size: 22px;
-    line-height: 32px;
+    line-height: 27px;
+  }
+
+  .feedback-target-cancellation-dish {
+    max-width: 333px;
+    margin: 0 0 50px;
+    padding-right: 1em;
+    color: #000;
+    font-size: 20px;
+    line-height: 24px;
   }
 
   .feedback-target-cancellation-warning {
     color: #000;
+    font-size: 18px;
+    line-height: 22px;
 
     p {
       margin: 0;
     }
 
     p + p {
-      margin-top: 19px;
+      margin-top: 22px;
     }
   }
 
@@ -275,7 +298,7 @@
   justify-content: space-between;
   align-items: stretch;
   gap: 12px;
-  margin-top: 17px;
+  margin-top: 43px;
 
   .button_to {
     display: flex;

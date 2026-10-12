@@ -22,6 +22,7 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
     log_in
     visit new_feedback_target_path
     assert_no_link "本日の設定を取り消す"
+    assert_unset_design
     select "カレー（主菜）", from: "対象料理"
     click_button "設定"
     assert_current_path center_reaction_results_path
@@ -35,6 +36,7 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
       assert_text "対象料理：カレー（主菜）"
       assert_text "本日の対象料理とリアクション記録が削除されます。"
       assert_text "この操作は元に戻せません。"
+      assert_no_text "本当に、本日のフィードバック対象料理の設定を取り消しますか？"
       assert_no_text "仕様について"
       assert_no_text "flash"
       click_link "キャンセル"
@@ -48,6 +50,7 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
     assert_selector "h2 + [role=status]", exact_text: "本日の対象料理を取り消しました"
     assert_no_link "本日の設定を取り消す"
     assert_no_selector ".feedback-target-setting--configured"
+    assert_unset_design
     assert_not FeedbackTarget.exists?(target.id)
     select "カレー（主菜）", from: "対象料理"
     click_button "設定"
@@ -138,9 +141,12 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
     log_in
     [ 320, 390, 767, 768, 960, 1280 ].each do |width|
       resize_viewport(width)
+      visit root_path
+      shared_layout = shared_layout_styles
       visit new_feedback_target_path
       assert_selector ".feedback-target-setting--configured"
       assert_font_loaded
+      assert_equal shared_layout, shared_layout_styles
       assert_fits_viewport(width)
       assert_configured_design
       assert_configured_positions if width == 960
@@ -148,6 +154,7 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
       click_link "本日の設定を取り消す"
       assert_current_path confirm_destroy_feedback_target_path(target)
       assert_font_loaded
+      assert_equal shared_layout, shared_layout_styles
       assert_fits_viewport(width)
       assert_confirmation_design
       assert_confirmation_positions if width == 960
@@ -158,9 +165,11 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
     [ 320, 390, 960 ].each do |width|
       resize_viewport(width)
       visit new_feedback_target_path
+      assert_font_loaded
       assert_fits_viewport(width)
       click_link "本日の設定を取り消す"
       assert_current_path confirm_destroy_feedback_target_path(target)
+      assert_font_loaded
       assert_fits_viewport(width)
       assert_confirmation_design
     end
@@ -203,14 +212,20 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
   end
 
   def assert_fits_viewport(width)
-    assert page.evaluate_script(<<~JS), "Cancellation UI overflows at #{width}px"
-      document.documentElement.scrollWidth <= window.innerWidth &&
-        [...document.querySelectorAll('main h2, main p, main a, main button')].every(element => {
+    layout = page.evaluate_script(<<~JS)
+      (() => {
+        const violations = [...document.querySelectorAll('main h2, main p, main a, main button')].flatMap(element => {
           const rect = element.getBoundingClientRect();
-          return rect.left >= 0 && rect.right <= window.innerWidth + 1 &&
-            element.scrollWidth <= element.clientWidth + 1;
-        })
+          return rect.left >= 0 && rect.right <= window.innerWidth + 1 && element.scrollWidth <= element.clientWidth + 1 ? [] :
+            [{ selector: element.className, left: rect.left, right: rect.right,
+              scrollWidth: element.scrollWidth, clientWidth: element.clientWidth,
+              font: getComputedStyle(element).font }];
+        });
+        return { fits: document.documentElement.scrollWidth <= window.innerWidth && violations.length === 0,
+          violations, fonts: document.fonts.status };
+      })()
     JS
+    assert layout.fetch("fits"), "Cancellation UI overflows at #{width}px: #{layout.inspect}"
   end
 
   def assert_configured_design
@@ -220,13 +235,17 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
         const style = getComputedStyle(main);
         const heading = getComputedStyle(main.querySelector('h2'));
         const date = getComputedStyle(main.querySelector('.feedback-target-setting-date'));
+        const dish = main.querySelector('.feedback-target-setting-dish');
+        const dishStyle = getComputedStyle(dish);
         const button = main.querySelector('.feedback-target-cancel-link');
         return style.backgroundColor === 'rgb(255, 255, 255)' && style.color === 'rgb(31, 31, 31)' &&
           style.fontFamily.includes('Noto Sans JP') && heading.fontSize === '28px' &&
-          heading.fontWeight === '400' && heading.color === 'rgb(0, 0, 0)' && date.fontSize === '20px' &&
+          heading.fontWeight === '400' && heading.color === 'rgb(0, 0, 0)' && date.fontSize === '22px' &&
+          dishStyle.fontSize === '20px' && dishStyle.fontWeight === '400' && dishStyle.color === 'rgb(0, 0, 0)' &&
+          dishStyle.textDecorationLine === 'none' && dish.previousElementSibling.matches('.feedback-target-setting-date') &&
           [...main.querySelectorAll('.feedback-target-setting-state p')].every(element => {
             const text = getComputedStyle(element);
-            return text.fontSize === '20px' && text.fontWeight === '400' &&
+            return text.fontSize === '18px' && text.lineHeight === '22px' && text.fontWeight === '400' &&
               text.color === 'rgb(0, 0, 0)' && text.textDecorationLine === 'none';
           }) && #{button_style_check} && Math.abs(button.getBoundingClientRect().height - 48) <= 1;
       })()
@@ -238,14 +257,18 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
       (() => {
         const main = document.querySelector('main');
         const style = getComputedStyle(main);
+        const dish = main.querySelector('.feedback-target-cancellation-dish');
+        const dishStyle = getComputedStyle(dish);
         const buttons = [...main.querySelectorAll('.feedback-target-cancellation-button')];
         const rects = buttons.map(button => button.getBoundingClientRect());
         return style.backgroundColor === 'rgb(255, 255, 255)' && style.color === 'rgb(31, 31, 31)' &&
           style.fontFamily.includes('Noto Sans JP') &&
           getComputedStyle(main.querySelector('.feedback-target-cancellation-date')).fontSize === '22px' &&
+          dishStyle.fontSize === '20px' && dishStyle.fontWeight === '400' && dishStyle.color === 'rgb(0, 0, 0)' &&
+          dishStyle.textDecorationLine === 'none' && dish.previousElementSibling.matches('.feedback-target-cancellation-date') &&
           [...main.querySelectorAll('.feedback-target-cancellation-warning p')].every(element => {
             const text = getComputedStyle(element);
-            return text.fontSize === '20px' && text.fontWeight === '400' &&
+            return text.fontSize === '18px' && text.lineHeight === '22px' && text.fontWeight === '400' &&
               text.color === 'rgb(0, 0, 0)' && text.textDecorationLine === 'none';
           }) && buttons.length === 2 && buttons.every(button => #{button_style_check}) &&
           Math.abs(rects[0].top - rects[1].top) <= 1 && Math.abs(rects[0].bottom - rects[1].bottom) <= 1 &&
@@ -269,16 +292,20 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
 
   def assert_configured_positions
     assert_positions("main h2" => [ 60, 167 ], ".feedback-target-setting-date" => [ 60, 222 ],
-      ".feedback-target-setting-state" => [ 60, 296 ], ".feedback-target-cancel-link" => [ 223, 466 ])
+      ".feedback-target-setting-dish" => [ 60, 259 ],
+      ".feedback-target-setting-state" => [ 60, 333 ],
+      ".feedback-target-setting-state p + p" => [ 60, 377 ], ".feedback-target-cancel-link" => [ 223, 466 ])
     assert_in_delta 488, find(".feedback-target-cancel-link").evaluate_script("this.getBoundingClientRect().width"), 0.1
   end
 
   def assert_confirmation_positions
-    # Issueで指定された対象料理の1行分（48px）をFigmaの案内の前に追加する。
     assert_positions(".feedback-target-cancellation-date" => [ 92, 222 ],
-      ".feedback-target-cancellation-warning" => [ 92, 296 ],
-      ".feedback-target-cancellation-actions a" => [ 92, 534 ],
-      ".feedback-target-cancellation-actions button" => [ 570, 534 ])
+      ".feedback-target-cancellation-dish" => [ 92, 259 ],
+      ".feedback-target-cancellation-warning" => [ 92, 333 ],
+      ".feedback-target-cancellation-warning p:nth-child(2)" => [ 92, 377 ],
+      ".feedback-target-cancellation-warning p:nth-child(3)" => [ 92, 421 ],
+      ".feedback-target-cancellation-actions a" => [ 92, 486 ],
+      ".feedback-target-cancellation-actions button" => [ 570, 486 ])
     assert_in_delta 310, find(".feedback-target-cancellation-actions button").evaluate_script("this.getBoundingClientRect().width"), 0.1
   end
 
@@ -292,5 +319,33 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
 
   def save_screen(state, width)
     page.save_screenshot(Rails.root.join("tmp/screenshots/issue73-#{state}-#{width}.png")) if [ 390, 960 ].include?(width)
+  end
+
+  def assert_unset_design
+    assert page.evaluate_script(<<~JS), "The existing 6-a design must remain unchanged"
+      (() => {
+        const main = document.querySelector('.feedback-target-setting');
+        const date = getComputedStyle(main.querySelector('.feedback-target-setting-date'));
+        const heading = getComputedStyle(main.querySelector('h2'));
+        return !main.classList.contains('feedback-target-setting--configured') &&
+          getComputedStyle(main).paddingTop === '120px' && date.fontSize === '20px' && date.marginBottom === '35.2px' &&
+          heading.fontSize === '20px' && heading.lineHeight === '24px' && heading.marginBottom === '6px' &&
+          ['.form-select', '.feedback-target-setting-submit'].every(selector => {
+            const style = getComputedStyle(main.querySelector(selector));
+            return style.height === '48px' && style.borderRadius === '0px';
+          });
+      })()
+    JS
+  end
+
+  def shared_layout_styles
+    page.evaluate_script(<<~JS)
+      [...document.querySelectorAll('header, header nav, header a, footer, footer a')].map(element => {
+        const style = getComputedStyle(element);
+        return ['backgroundColor', 'color', 'fontSize', 'fontWeight', 'fontFamily',
+          'borderTop', 'borderRight', 'borderBottom', 'borderLeft', 'textDecorationLine',
+          'padding', 'gap', 'minHeight'].map(property => style[property]);
+      })
+    JS
   end
 end

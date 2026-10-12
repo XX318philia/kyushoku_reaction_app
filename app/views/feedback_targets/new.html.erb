@@ -16,9 +16,9 @@
 
     <% category_labels = { "main_dish" => "主菜", "side_dish" => "副菜", "soup" => "汁物", "fruit_or_dessert" => "フルーツ・デザート" } %>
     <% if @feedback_target.persisted? %>
+      <p class="feedback-target-setting-dish">対象料理：<%= @feedback_target.dish.name %>（<%= category_labels.fetch(@feedback_target.dish.category) %>）</p>
       <div class="feedback-target-setting-state">
         <p>本日のフィードバック対象料理は、既に設定済みです。</p>
-        <p>対象料理：<%= @feedback_target.dish.name %>（<%= category_labels.fetch(@feedback_target.dish.category) %>）</p>
         <p>設定を変更したい場合は、「本日の設定を取り消す」を押してください。</p>
       </div>
       <%= link_to "本日の設定を取り消す", confirm_destroy_feedback_target_path(@feedback_target), class: "btn feedback-target-cancel-link" %>

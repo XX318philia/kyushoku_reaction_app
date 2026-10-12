@@ -203,6 +203,8 @@ class FeedbackTargetsControllerTest < ActionDispatch::IntegrationTest
     assert_select "main p", text: "本日の対象料理とリアクション記録が削除されます。"
     assert_select "main p", text: "料理マスタは削除されません。"
     assert_select "main p", text: "この操作は元に戻せません。"
+    assert_select "main p", text: "本当に、本日のフィードバック対象料理の設定を取り消しますか？", count: 0
+    assert_select ".feedback-target-cancellation-date + .feedback-target-cancellation-dish", text: "対象料理：カレー（主菜）"
     assert_select "main", text: /6-c|flash|仕様について/, count: 0
     assert_select "form[action=?][method=post]", feedback_target_path(target) do
       assert_select "input[name=_method][value=delete]"
@@ -525,6 +527,7 @@ class FeedbackTargetsControllerTest < ActionDispatch::IntegrationTest
     assert_select "time[datetime=?]", Date.current.iso8601
     assert_select "main p", text: "本日のフィードバック対象料理は、既に設定済みです。", count: 1
     assert_select "main p", text: "対象料理：#{dish.name}（#{category_labels.fetch(dish.category)}）", count: 1
+    assert_select ".feedback-target-setting-date + .feedback-target-setting-dish", text: "対象料理：#{dish.name}（#{category_labels.fetch(dish.category)}）"
     assert_select "main form, main select, main input[type=submit]", count: 0
     assert_select "[role=alert]", count: 0
   end
