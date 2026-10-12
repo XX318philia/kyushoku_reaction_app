@@ -1,15 +1,27 @@
 <% content_for :title, "対象料理設定 | 給食リアクション" %>
+<% if @feedback_target.persisted? %>
+  <% content_for :head do %>
+    <%= stylesheet_link_tag "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&display=swap", "data-turbo-track": "dynamic" %>
+  <% end %>
+<% end %>
 
-<main class="feedback-target-setting">
+<main class="feedback-target-setting <%= "feedback-target-setting--configured" if @feedback_target.persisted? %>">
   <div class="feedback-target-setting-content mx-auto">
+    <% if @feedback_target.persisted? || @dishes.empty? %>
+      <h2 class="text-center">設定フォーム</h2>
+      <%= render "feedback_targets/flash" %>
+    <% end %>
+
     <p class="feedback-target-setting-date">対象日：<time datetime="<%= @target_date.iso8601 %>"><%= @target_date.strftime("%Y年%-m月%-d日") %></time></p>
 
     <% category_labels = { "main_dish" => "主菜", "side_dish" => "副菜", "soup" => "汁物", "fruit_or_dessert" => "フルーツ・デザート" } %>
     <% if @feedback_target.persisted? %>
+      <p class="feedback-target-setting-dish">対象料理：<%= @feedback_target.dish.name %>（<%= category_labels.fetch(@feedback_target.dish.category) %>）</p>
       <div class="feedback-target-setting-state">
-        <p>本日の対象料理は設定済みです</p>
-        <p>対象料理：<%= @feedback_target.dish.name %>（<%= category_labels.fetch(@feedback_target.dish.category) %>）</p>
+        <p>本日のフィードバック対象料理は、既に設定済みです。</p>
+        <p>設定を変更したい場合は、「本日の設定を取り消す」を押してください。</p>
       </div>
+      <%= link_to "本日の設定を取り消す", confirm_destroy_feedback_target_path(@feedback_target), class: "btn feedback-target-cancel-link" %>
     <% else %>
       <% if @feedback_target.errors.any? %>
         <div class="alert alert-danger" role="alert">
@@ -28,6 +40,7 @@
         </div>
       <% else %>
         <h2 class="text-center">設定フォーム</h2>
+        <%= render "feedback_targets/flash" %>
 
         <%= form_with model: @feedback_target do |form| %>
           <%= form.label :dish_id, "対象料理", class: "visually-hidden" %>

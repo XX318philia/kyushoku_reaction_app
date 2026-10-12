@@ -164,6 +164,155 @@
   overflow-wrap: anywhere;
 }
 
+.feedback-target-setting--configured {
+  padding: 96px 24px 48px;
+  font-size: 20px;
+  line-height: 29px;
+
+  .feedback-target-setting-content {
+    max-width: 840px;
+  }
+
+  h2 {
+    margin: 0 0 14px;
+    color: #000;
+    font-size: 28px;
+    line-height: 41px;
+  }
+
+  .feedback-target-setting-date {
+    margin: 0 0 10px;
+    font-size: 22px;
+    line-height: 27px;
+  }
+
+  .feedback-target-setting-dish {
+    max-width: 333px;
+    margin: 0 0 50px;
+    padding-right: 1em;
+    color: #000;
+    font-size: 20px;
+    line-height: 24px;
+  }
+
+  .feedback-target-setting-state {
+    max-width: 774px;
+    color: #000;
+    font-size: 18px;
+    line-height: 22px;
+
+    p {
+      margin: 0;
+    }
+
+    p + p {
+      margin-top: 22px;
+    }
+  }
+
+  .feedback-target-cancel-link {
+    display: block;
+    width: 100%;
+    max-width: 488px;
+    min-height: 48px;
+    margin: 67px 0 0;
+    margin-left: max(0px, calc((100% - 488px) / 2 - 13px));
+    padding: 12px;
+    border: 1px solid #1f1f1f;
+    border-radius: 0;
+    background-color: #ededed;
+    color: inherit;
+    font-size: 14px;
+    font-weight: normal;
+    line-height: 22px;
+    text-decoration: none;
+  }
+}
+
+.feedback-target-cancellation {
+  padding: 151px 24px 48px;
+  background-color: #fff;
+  color: #1f1f1f;
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 20px;
+  font-weight: normal;
+  line-height: 29px;
+
+  .feedback-target-cancellation-date {
+    margin: 0 0 10px;
+    font-size: 22px;
+    line-height: 27px;
+  }
+
+  .feedback-target-cancellation-dish {
+    max-width: 333px;
+    margin: 0 0 50px;
+    padding-right: 1em;
+    color: #000;
+    font-size: 20px;
+    line-height: 24px;
+  }
+
+  .feedback-target-cancellation-warning {
+    color: #000;
+    font-size: 18px;
+    line-height: 22px;
+
+    p {
+      margin: 0;
+    }
+
+    p + p {
+      margin-top: 22px;
+    }
+  }
+
+  .feedback-target-cancellation-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 46px;
+    padding: 11px 8px;
+    border: 1px solid #1f1f1f;
+    border-radius: 0;
+    background-color: #ededed;
+    color: inherit;
+    font-size: 14px;
+    font-weight: normal;
+    line-height: 22px;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+}
+
+.feedback-target-cancellation-content {
+  width: 100%;
+  max-width: 776px;
+  overflow-wrap: anywhere;
+}
+
+.feedback-target-cancellation-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 310px));
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 43px;
+
+  .button_to {
+    display: flex;
+    min-width: 0;
+    margin: 0;
+  }
+}
+
+@media (min-width: 840px) {
+  .feedback-target-cancellation-actions {
+    width: calc(100% + 12px);
+  }
+}
+
 .reaction-entry {
   padding: 64px clamp(16px, calc((100% - 326px) / 2), 32px) 48px;
   background-color: #fff;
