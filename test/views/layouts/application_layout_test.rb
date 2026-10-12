@@ -7,7 +7,7 @@ class ApplicationLayoutTest < ActionView::TestCase
     assert_select "header", count: 0
     assert_select "main", text: "利用規約"
     assert_select "footer a[href=?]", terms_path, text: "利用規約"
-    assert_select "footer a[href='#']", text: "プライバシーポリシー"
+    assert_select "footer a[href=?]", privacy_policy_path, text: "プライバシーポリシー"
   end
 
   test "a page can omit the footer while retaining the shared header" do
