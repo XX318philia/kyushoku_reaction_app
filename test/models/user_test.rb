@@ -2,8 +2,8 @@ require "test_helper"
 
 class UserTest < ActiveSupport::TestCase
   setup do
-    @kindergarten = Kindergarten.create!(name: "さくら幼稚園")
-    @user = User.new(login_id: "sakura", password: "password", role: :kindergarten, kindergarten: @kindergarten)
+    @kindergarten = FactoryBot.create(:kindergarten, name: "さくら幼稚園")
+    @user = FactoryBot.build(:user, login_id: "sakura", password: "password", kindergarten: @kindergarten)
   end
 
   test "saves a kindergarten user with a password digest and timestamps" do
@@ -75,7 +75,7 @@ class UserTest < ActiveSupport::TestCase
   test "stores roles as strings" do
     assert_equal({ "kindergarten" => "kindergarten", "center" => "center" }, User.roles)
     @user.save!
-    center_user = User.create!(login_id: "center", password: "password", role: :center)
+    center_user = FactoryBot.create(:user, :center, login_id: "center", password: "password")
 
     assert @user.reload.kindergarten?
     assert center_user.reload.center?
@@ -141,7 +141,7 @@ class UserTest < ActiveSupport::TestCase
 
   test "saves multiple center users without a kindergarten" do
     2.times do |index|
-      user = User.new(login_id: "center#{index}", password: "password", role: :center)
+      user = FactoryBot.build(:user, :center, login_id: "center#{index}", password: "password")
 
       assert user.save
       assert_nil user.reload.kindergarten_id
@@ -165,7 +165,7 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "rejects changing a center user to kindergarten without assigning a kindergarten" do
-    user = User.create!(login_id: "center", password: "password", role: :center)
+    user = FactoryBot.create(:user, :center, login_id: "center", password: "password")
 
     assert_not user.update(role: :kindergarten)
     assert user.errors.of_kind?(:kindergarten, :blank)
@@ -173,7 +173,7 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "rejects assigning a kindergarten to a center user" do
-    user = User.create!(login_id: "center", password: "password", role: :center)
+    user = FactoryBot.create(:user, :center, login_id: "center", password: "password")
 
     assert_not user.update(kindergarten: @kindergarten)
     assert user.errors.of_kind?(:kindergarten, :present)
@@ -197,7 +197,7 @@ class UserTest < ActiveSupport::TestCase
   test "allows moving a user only to a kindergarten without another user" do
     @user.save!
     other_kindergarten = Kindergarten.create!(name: "すみれ幼稚園")
-    other_user = User.create!(login_id: "sumire", password: "password", role: :kindergarten, kindergarten: other_kindergarten)
+    other_user = FactoryBot.create(:user, login_id: "sumire", password: "password", kindergarten: other_kindergarten)
 
     assert_not @user.update(kindergarten: other_kindergarten)
     assert @user.errors.of_kind?(:kindergarten_id, :taken)
