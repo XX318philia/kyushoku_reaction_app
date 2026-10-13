@@ -106,11 +106,11 @@ class FeedbackTargetTest < ActiveSupport::TestCase
     first_classroom = Classroom.create!(kindergarten: kindergarten, name: "ひまわり組")
     second_classroom = Classroom.create!(kindergarten: kindergarten, name: "すみれ組")
     third_classroom = Classroom.create!(kindergarten: other_kindergarten, name: "ひまわり組")
-    Reaction.create!(classroom: first_classroom, feedback_target: @feedback_target,
+    FactoryBot.create(:reaction, classroom: first_classroom, feedback_target: @feedback_target,
       positive_count: 10, neutral_count: 0, negative_count: 0)
-    Reaction.create!(classroom: second_classroom, feedback_target: @feedback_target,
+    FactoryBot.create(:reaction, classroom: second_classroom, feedback_target: @feedback_target,
       positive_count: 0, neutral_count: 20, negative_count: 0)
-    Reaction.create!(classroom: third_classroom, feedback_target: @feedback_target,
+    FactoryBot.create(:reaction, classroom: third_classroom, feedback_target: @feedback_target,
       positive_count: 5, neutral_count: 5, negative_count: 10)
 
     assert_equal({
@@ -149,7 +149,7 @@ class FeedbackTargetTest < ActiveSupport::TestCase
 
   test "returns zero percent for a zero count when other counts are positive" do
     @feedback_target.save!
-    Reaction.create!(classroom: create_summary_classroom, feedback_target: @feedback_target,
+    FactoryBot.create(:reaction, feedback_target: @feedback_target,
       positive_count: 0, neutral_count: 1, negative_count: 3)
 
     assert_equal({
@@ -160,7 +160,7 @@ class FeedbackTargetTest < ActiveSupport::TestCase
 
   test "returns one hundred percent when only one reaction type has a positive count" do
     @feedback_target.save!
-    reaction = Reaction.new(classroom: create_summary_classroom, feedback_target: @feedback_target)
+    reaction = FactoryBot.build(:reaction, feedback_target: @feedback_target)
 
     [ :positive, :neutral, :negative ].each do |type|
       reaction.assign_attributes(positive_count: 0, neutral_count: 0, negative_count: 0)
@@ -178,7 +178,7 @@ class FeedbackTargetTest < ActiveSupport::TestCase
 
   test "returns percentages without rounding for display" do
     @feedback_target.save!
-    Reaction.create!(classroom: create_summary_classroom, feedback_target: @feedback_target,
+    FactoryBot.create(:reaction, feedback_target: @feedback_target,
       positive_count: 1, neutral_count: 2, negative_count: 3)
 
     summary = @feedback_target.reaction_summary
@@ -196,11 +196,11 @@ class FeedbackTargetTest < ActiveSupport::TestCase
     @feedback_target.reactions.load
     assert_equal 0, @feedback_target.reaction_summary[:total_count]
 
-    first_reaction = Reaction.create!(classroom: first_classroom, feedback_target: @feedback_target,
+    first_reaction = FactoryBot.create(:reaction, classroom: first_classroom, feedback_target: @feedback_target,
       positive_count: 2, neutral_count: 1, negative_count: 1)
     assert_equal 4, @feedback_target.reaction_summary[:total_count]
 
-    Reaction.create!(classroom: second_classroom, feedback_target: @feedback_target,
+    FactoryBot.create(:reaction, classroom: second_classroom, feedback_target: @feedback_target,
       positive_count: 3, neutral_count: 2, negative_count: 1)
     assert_equal 10, @feedback_target.reaction_summary[:total_count]
 
@@ -237,7 +237,7 @@ class FeedbackTargetTest < ActiveSupport::TestCase
 
   test "does not change saved feedback targets or reactions when summarizing" do
     @feedback_target.save!
-    Reaction.create!(classroom: create_summary_classroom, feedback_target: @feedback_target,
+    FactoryBot.create(:reaction, feedback_target: @feedback_target,
       positive_count: 2, neutral_count: 1, negative_count: 1)
     saved_targets = FeedbackTarget.order(:id).map(&:attributes)
     saved_reactions = Reaction.order(:id).map(&:attributes)
@@ -250,7 +250,7 @@ class FeedbackTargetTest < ActiveSupport::TestCase
 
   test "fetches all three count sums in one aggregate query" do
     @feedback_target.save!
-    Reaction.create!(classroom: create_summary_classroom, feedback_target: @feedback_target,
+    FactoryBot.create(:reaction, feedback_target: @feedback_target,
       positive_count: 2, neutral_count: 1, negative_count: 1)
     queries = []
     subscriber = ->(event) do
