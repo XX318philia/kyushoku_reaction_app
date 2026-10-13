@@ -1,14 +1,16 @@
 require "test_helper"
 
 class ReactionsControllerTest < ActionDispatch::IntegrationTest
+  # 登録・更新はHTTP応答、保存結果、失敗時の既存データ保護を検証する。
+  # バリデーション・関連・DB制約そのものはReactionTestで検証する。
   setup do
     travel_to Time.zone.local(2026, 10, 8, 0, 30)
-    @kindergarten = Kindergarten.create!(name: "さくら幼稚園")
-    @user = User.create!(login_id: "Sakura", password: "kindergarten-password",
+    @kindergarten = FactoryBot.create(:kindergarten, name: "さくら幼稚園")
+    @user = FactoryBot.create(:user, login_id: "Sakura", password: "kindergarten-password",
       role: :kindergarten, kindergarten: @kindergarten)
-    @classrooms = [ "年少", "年中", "年長" ].map { |name| @kindergarten.classrooms.create!(name: name) }
-    @dish = Dish.create!(name: "カレー", category: :main_dish)
-    @feedback_target = FeedbackTarget.create!(dish: @dish, target_date: Date.current)
+    @classrooms = [ "年少", "年中", "年長" ].map { |name| FactoryBot.create(:classroom, kindergarten: @kindergarten, name: name) }
+    @dish = FactoryBot.create(:dish, name: "カレー", category: :main_dish)
+    @feedback_target = FactoryBot.create(:feedback_target, dish: @dish, target_date: Date.current)
     post kindergarten_login_path, params: { login_id: @user.login_id, password: "kindergarten-password" }
     get new_reaction_url
     @displayed_target = css_select("input[name=displayed_target]").first["value"]
@@ -460,6 +462,25 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[role=alert] li", count: 3
     assert_select "main input[type=number]", count: 3 do |fields|
       fields.each { |field| assert_empty field["value"].to_s }
+    end
+  end
+
+  test "rejects JSON false and nonscalar counts on registration without saving" do
+    %i[ positive_count neutral_count negative_count ].each do |attribute|
+      [ false, [ 1 ], { value: 1 } ].each do |value|
+        assert_no_difference "Reaction.count" do
+          post reactions_url, params: registration_params.merge(classroom_id: @classrooms.first.id.to_s,
+            reaction: registration_params[:reaction].merge(attribute => value)), as: :json, headers: { "Accept" => "text/html" }
+        end
+
+        assert_response :unprocessable_content
+        assert_select "[role=alert] li", minimum: 1
+        assert_select "select#classroom_id option[selected][value=?]", @classrooms.first.id
+        assert_select ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.first.name}）", count: 1
+        assert_select "h2", text: "入力フォーム"
+        assert_select "input[type=submit][value=登録]", count: 1
+        assert_select "input[name=displayed_reaction]", count: 0
+      end
     end
   end
 
@@ -1057,7 +1078,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   def saved_reaction(classroom: @classrooms.first, target: @feedback_target)
-    Reaction.create!(classroom: classroom, feedback_target: target, positive_count: 2, neutral_count: 1, negative_count: 0)
+    FactoryBot.create(:reaction, classroom: classroom, feedback_target: target, positive_count: 2, neutral_count: 1, negative_count: 0)
   end
 
   def editing_params(reaction)
