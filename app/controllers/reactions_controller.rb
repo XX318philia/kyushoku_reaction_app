@@ -13,11 +13,15 @@ class ReactionsController < ApplicationController
       @selected_classroom.reactions.find_by(feedback_target: @feedback_target)
     end
     @reaction ||= initial_reaction
-    @displayed_reaction = Rails.application.message_verifier(:reaction_edit).generate(reaction_snapshot(@reaction)) if @reaction.persisted?
+    if @reaction.persisted?
+      snapshot = ReactionSubmission.edit_snapshot(reaction: @reaction, target_snapshot: target_snapshot)
+      @displayed_reaction = Rails.application.message_verifier(:reaction_edit).generate(snapshot)
+    end
   end
 
   def create
-    @reaction = Reaction.new(reaction_params)
+    attributes = reaction_params
+    @reaction = Reaction.new(attributes)
     @selected_classroom = @classrooms.find { |classroom| classroom.id.to_s == params[:classroom_id] }
     @reaction.classroom = @selected_classroom
     @reaction.feedback_target = @feedback_target
@@ -36,28 +40,22 @@ class ReactionsController < ApplicationController
       return render :new, status: :unprocessable_content
     end
 
-    existing_reaction = @selected_classroom.reactions.find_by(feedback_target: @feedback_target)
-    if params[:displayed_reaction].present?
-      return render_stale_entry unless existing_reaction && displayed_reaction_current?(existing_reaction)
+    submission = ReactionSubmission.call(reaction: @reaction, attributes: attributes,
+      displayed_reaction: params[:displayed_reaction], target_snapshot: target_snapshot)
+    @reaction = submission.reaction
+    @displayed_reaction = params[:displayed_reaction] if @reaction.persisted?
 
-      @reaction = existing_reaction
-      @reaction.assign_attributes(reaction_params)
-      @displayed_reaction = params[:displayed_reaction]
-    elsif existing_reaction
-      return render_already_registered
-    end
-
-    updating = @reaction.persisted?
-    if @reaction.save
-      notice = updating ? "登録内容を更新しました" : "登録が成功しました"
+    case submission.status
+    when :created, :updated
+      notice = submission.status == :updated ? "登録内容を更新しました" : "登録が成功しました"
       redirect_to reactions_path, notice: notice, status: :see_other
-    elsif @reaction.errors.of_kind?(:classroom_id, :taken)
-      render_already_registered
-    else
+    when :invalid
       render :new, status: :unprocessable_content
+    when :stale
+      render_stale_entry
+    when :already_registered
+      render_already_registered
     end
-  rescue ActiveRecord::RecordNotUnique
-    render_already_registered
   end
 
   private
@@ -84,15 +82,6 @@ class ReactionsController < ApplicationController
   def displayed_target_current?
     token = params[:displayed_target]
     token.is_a?(String) && Rails.application.message_verifier(:reaction_entry).verified(token) == target_snapshot
-  end
-
-  def reaction_snapshot(reaction)
-    [ target_snapshot, reaction.classroom_id, reaction.id ]
-  end
-
-  def displayed_reaction_current?(reaction)
-    token = params[:displayed_reaction]
-    token.is_a?(String) && Rails.application.message_verifier(:reaction_edit).verified(token) == reaction_snapshot(reaction)
   end
 
   def render_stale_entry
