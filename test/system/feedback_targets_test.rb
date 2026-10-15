@@ -291,29 +291,30 @@ class FeedbackTargetsTest < ActionDispatch::SystemTestCase
   end
 
   def assert_configured_positions
-    assert_positions("main h2" => [ 60, 167 ], ".feedback-target-setting-date" => [ 60, 222 ],
-      ".feedback-target-setting-dish" => [ 60, 259 ],
-      ".feedback-target-setting-state" => [ 60, 333 ],
-      ".feedback-target-setting-state p + p" => [ 60, 377 ], ".feedback-target-cancel-link" => [ 223, 466 ])
+    assert_positions("main h2" => [ 60, 96 ], ".feedback-target-setting-date" => [ 60, 151 ],
+      ".feedback-target-setting-dish" => [ 60, 188 ],
+      ".feedback-target-setting-state" => [ 60, 262 ],
+      ".feedback-target-setting-state p + p" => [ 60, 306 ], ".feedback-target-cancel-link" => [ 223, 395 ])
     assert_in_delta 488, find(".feedback-target-cancel-link").evaluate_script("this.getBoundingClientRect().width"), 0.1
   end
 
   def assert_confirmation_positions
-    assert_positions(".feedback-target-cancellation-date" => [ 92, 222 ],
-      ".feedback-target-cancellation-dish" => [ 92, 259 ],
-      ".feedback-target-cancellation-warning" => [ 92, 333 ],
-      ".feedback-target-cancellation-warning p:nth-child(2)" => [ 92, 377 ],
-      ".feedback-target-cancellation-warning p:nth-child(3)" => [ 92, 421 ],
-      ".feedback-target-cancellation-actions a" => [ 92, 486 ],
-      ".feedback-target-cancellation-actions button" => [ 570, 486 ])
+    assert_positions(".feedback-target-cancellation-date" => [ 92, 151 ],
+      ".feedback-target-cancellation-dish" => [ 92, 188 ],
+      ".feedback-target-cancellation-warning" => [ 92, 262 ],
+      ".feedback-target-cancellation-warning p:nth-child(2)" => [ 92, 306 ],
+      ".feedback-target-cancellation-warning p:nth-child(3)" => [ 92, 350 ],
+      ".feedback-target-cancellation-actions a" => [ 92, 415 ],
+      ".feedback-target-cancellation-actions button" => [ 570, 415 ])
     assert_in_delta 310, find(".feedback-target-cancellation-actions button").evaluate_script("this.getBoundingClientRect().width"), 0.1
   end
 
   def assert_positions(positions)
+    main_top = find("main").evaluate_script("this.getBoundingClientRect().top")
     positions.each do |selector, (x, y)|
       rect = find(selector).evaluate_script("this.getBoundingClientRect().toJSON()")
       assert_in_delta x, rect.fetch("left"), 0.1, "#{selector} differs horizontally"
-      assert_in_delta y, rect.fetch("top"), 0.1, "#{selector} differs vertically"
+      assert_in_delta y, rect.fetch("top") - main_top, 0.1, "#{selector} differs vertically within main"
     end
   end
 

@@ -112,7 +112,9 @@ class CenterReactionResultsControllerTest < ActionDispatch::IntegrationTest
 
     get root_url
     assert_response :success
-    assert_select "a[href=?]", kindergarten_login_path, text: "幼稚園様はこちら"
+    assert_select "main h1", text: "給食を作る人と、食べる人をつなぐ。", count: 1
+    assert_select "main a", count: 0
+    assert_select "header .shared-login-links", count: 0
     assert_select "header a[href=?]", center_reaction_results_path, text: "当日集計結果", count: 1
 
     get center_reaction_results_url

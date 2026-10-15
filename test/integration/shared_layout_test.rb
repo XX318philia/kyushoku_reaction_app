@@ -7,9 +7,8 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_select "header", count: 1
-      assert_select "header h1", text: "給食リアクション", count: 1
-      assert_select "main h1", count: 0
-      assert_select "header nav", count: 0
+      assert_shared_logo
+      assert_logged_out_navigation(path)
       assert_shared_footer
     end
   end
@@ -34,7 +33,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
         assert_select "a[href=?]", center_logout_path, count: 0
       end
       assert_select "header nav[aria-label=?]", "給食センター用ナビゲーション", count: 0
-      assert_select "header h1", count: 0
+      assert_shared_logo
       assert_select "header a.active", count: 0
       assert_shared_footer
     end
@@ -57,7 +56,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
         assert_select "a[href=?]", kindergarten_logout_path, count: 0
       end
       assert_select "header nav[aria-label=?]", "幼稚園用ナビゲーション", count: 0
-      assert_select "header h1", count: 0
+      assert_shared_logo
       assert_select "header a.active", count: 0
       assert_shared_footer
     end
@@ -122,7 +121,8 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       post path, params: { login_id: "unknown", password: "wrong-password" }
 
       assert_response :unprocessable_content
-      assert_select "header h1", text: "給食リアクション", count: 1
+      assert_shared_logo
+      assert_select "header nav", count: 0
       assert_select "[role=alert]", text: "ログインIDまたはパスワードが正しくありません"
       assert_shared_footer
     end
@@ -150,8 +150,8 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
 
         assert_response :success
         assert_select "header", count: 1
-        assert_select "header h1", text: "給食リアクション", count: 1
-        assert_select "header nav", count: 0
+        assert_shared_logo
+        assert_logged_out_navigation(path)
         assert_select "header a[data-turbo-method=delete]", count: 0
         assert_shared_footer
       end
@@ -216,5 +216,21 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
     assert_select "footer", count: 1
     assert_select "footer a[href=?]", terms_path, text: "利用規約", count: 1
     assert_select "footer a[href=?]", privacy_policy_path, text: "プライバシーポリシー", count: 1
+  end
+
+  def assert_shared_logo
+    assert_select "header .shared-logo[role=img][aria-label=?]", "給食リアクション", count: 1
+    assert_select "header .shared-logo img[src*=?]", "logo-mark-mobile", count: 1
+    assert_select "header .shared-logo img[src*=?]", "logo-mark-desktop", count: 1
+  end
+
+  def assert_logged_out_navigation(path)
+    if path == root_path
+      assert_select "header nav[aria-label=?]", "ログイン先", count: 1
+      assert_select "header a[href=?]", kindergarten_login_path, text: "幼稚園の先生はこちら", count: 1
+      assert_select "header a[href=?]", center_login_path, text: "給食センターの方はこちら", count: 1
+    else
+      assert_select "header nav, header a", count: 0
+    end
   end
 end

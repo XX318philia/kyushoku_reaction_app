@@ -1,3 +1,13 @@
-<header class="shared-header shared-header--before-login d-flex align-items-center justify-content-center px-3">
-  <h1 class="mb-0 text-center">給食リアクション</h1>
+<header class="shared-header shared-header--before-login <%= "shared-header--home" if controller_name == "home" && action_name == "index" %>">
+  <%= render "shared/logo" %>
+  <% if controller_name == "home" && action_name == "index" %>
+    <nav class="shared-login-links" aria-label="ログイン先">
+      <%= link_to kindergarten_login_path, class: "shared-login-link shared-login-link--kindergarten" do %>
+        <span>幼稚園の先生</span><span>はこちら</span>
+      <% end %>
+      <%= link_to center_login_path, class: "shared-login-link shared-login-link--center" do %>
+        <span>給食センター</span><span>の方はこちら</span>
+      <% end %>
+    </nav>
+  <% end %>
 </header>

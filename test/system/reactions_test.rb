@@ -78,7 +78,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       end
 
       visit root_path
-      assert_no_selector "head link[href*='fonts.googleapis.com']", visible: :all
+      assert_selector "head link[href*='Noto+Sans+JP:wght@400;500;700']", visible: :all
       click_link "入力・編集"
       assert_current_path new_reaction_path
       assert_noto_sans_jp_loaded

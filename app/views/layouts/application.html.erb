@@ -7,6 +7,9 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
+    <% unless content_for?(:hide_header) && content_for?(:hide_footer) %>
+      <%= stylesheet_link_tag "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap", "data-turbo-track": "dynamic" %>
+    <% end %>
     <%= yield :head %>
 
     <link rel="manifest" href="/manifest.json">
@@ -17,7 +20,7 @@
     <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
   </head>
 
-  <body class="d-flex flex-column min-vh-100">
+  <body class="d-flex flex-column min-vh-100 <%= content_for(:body_class) %>">
     <% unless content_for?(:hide_header) %>
       <% if logged_in? %>
         <%= render "shared/header_after_login" %>
@@ -26,7 +29,7 @@
       <% end %>
     <% end %>
 
-    <div class="flex-grow-1">
+    <div class="application-content flex-grow-1">
       <%= yield %>
     </div>
 
