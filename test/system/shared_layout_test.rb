@@ -36,6 +36,7 @@ class SharedLayoutSystemTest < ActionDispatch::SystemTestCase
           const desktop = window.innerWidth >= 768;
           const main = document.querySelector('main');
           const image = main.querySelector('picture img');
+          const artworkStyles = [image.parentElement, image].map(element => getComputedStyle(element));
           const picture = image.parentElement.getBoundingClientRect();
           const copy = main.querySelector('.home-hero-copy').getBoundingClientRect();
           const links = [...document.querySelectorAll('.shared-login-link')].map(link => link.getBoundingClientRect());
@@ -45,6 +46,8 @@ class SharedLayoutSystemTest < ActionDispatch::SystemTestCase
             style.fontSize === (desktop ? '32px' : '24px') &&
             getComputedStyle(main.querySelector('p')).fontSize === '16px' &&
             image.complete && image.naturalWidth > 0 &&
+            artworkStyles.every(style => ['Top', 'Right', 'Bottom', 'Left'].every(side =>
+              style['border' + side + 'Width'] === '0px')) &&
             image.currentSrc.includes(desktop ? 'home-desktop' : 'home-smartphone') &&
             Math.abs(image.naturalWidth / image.naturalHeight - (desktop ? 1672 / 941 : 3 / 4)) < 0.001 &&
             Math.abs(picture.width / picture.height - (desktop ? 632 / 356 : 3 / 4)) < 0.001 &&
