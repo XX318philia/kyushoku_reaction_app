@@ -1,41 +1,165 @@
 @import 'bootstrap/scss/bootstrap';
 @import 'bootstrap-icons/font/bootstrap-icons';
 
+body {
+  background-color: #fff;
+}
+
 .shared-header,
 .shared-footer {
   color: #1f1f1f;
+  font-family: "Noto Sans JP", sans-serif;
 }
 
 .shared-header {
-  background-color: #ededed;
+  flex-shrink: 0;
+  background-color: #fff8ec;
   border-bottom: 1px solid #d1d1d1;
 }
 
 .shared-header--before-login {
-  min-height: 97px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 80px;
+  padding: 16px 19px;
+}
 
-  h1 {
-    font-size: 2rem;
-    font-weight: normal;
+.shared-logo {
+  display: flex;
+  flex: 0 0 140px;
+  align-items: center;
+  gap: 3px;
+  width: 140px;
+  height: 22px;
+  color: #2f6b58;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 17px;
+  white-space: nowrap;
+
+  .shared-logo-mark {
+    flex-shrink: 0;
+  }
+}
+
+.shared-header--home {
+  padding: 15.5px 12px;
+}
+
+.shared-login-links {
+  display: flex;
+  gap: 8px;
+}
+
+.shared-login-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 48px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover,
+  &:focus-visible {
+    color: #fff;
+    text-decoration: underline;
+  }
+}
+
+.shared-login-link--kindergarten {
+  background-color: #2f6b58;
+}
+
+.shared-login-link--center {
+  background-color: #a64f30;
+}
+
+@media (max-width: 359.98px) {
+  .shared-header--home {
+    min-height: 116px;
+    padding-block: 11.5px;
+  }
+
+  .shared-login-links {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .shared-login-link {
+    width: 96px;
+    height: 44px;
   }
 }
 
 .shared-header--after-login {
-  min-height: 62px;
-  font-size: .875rem;
-
-  nav {
-    min-height: inherit;
-  }
+  min-height: 80px;
+  padding: 0 12px 2px;
+  font-size: 13px;
 
   .nav-link {
+    flex-shrink: 0;
+    height: 20px;
+    margin-top: 9px;
+    padding: 0;
     color: inherit;
+    line-height: normal;
+    white-space: nowrap;
+  }
+}
+
+.shared-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  row-gap: 8px;
+  padding-top: 20px;
+
+  > .shared-logo {
+    margin-top: 5px;
+  }
+}
+
+.shared-header-links {
+  display: flex;
+  gap: 9px;
+  margin-left: auto;
+}
+
+.shared-header--kindergarten .shared-header-links {
+  > .nav-link:nth-child(1) {
+    width: 75px;
+  }
+
+  > .nav-link:nth-child(2) {
+    width: 59px;
   }
 }
 
 .shared-header-name {
+  display: block;
   min-width: 0;
-  overflow-wrap: anywhere;
+  height: 24px;
+  margin-top: -9px;
+  margin-left: 2px;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 施設名が長い場合も、同じ高さにあるメニューボタンの下へ入り込まない。
+.shared-header--kindergarten .shared-header-name {
+  max-width: calc(100% - 52px);
 }
 
 .shared-kindergarten-menu-button {
@@ -44,12 +168,146 @@
   padding: 0;
   border: 1px solid currentColor;
   border-radius: 0;
+  background-color: #ededed;
+  color: inherit;
+
+  &:hover,
+  &:focus-visible,
+  &:active,
+  &.show {
+    border-color: currentColor;
+    background-color: #ededed;
+    color: inherit;
+  }
+}
+
+#kindergarten-menu-items {
+  min-width: 128px;
+  padding: 0;
+  border: 1px solid #1f1f1f;
+  border-radius: 0;
+  background-color: #fff;
+  font-size: 11px;
+
+  .dropdown-item {
+    padding: 10px 20px;
+    color: #1f1f1f;
+    line-height: 20px;
+  }
+}
+
+.shared-header--center {
+  font-size: 12px;
+
+  .shared-header-links {
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .nav-link {
+    margin-top: 0;
+  }
+
+  .shared-header-name {
+    margin-top: 4px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 359.98px) {
+  .shared-header--kindergarten .shared-header-name {
+    max-width: 100%;
+    margin-top: 4px;
+  }
 }
 
 .shared-footer {
-  background-color: #f5f5f5;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
   min-height: 72px;
   border-top: 1px solid #d1d1d1;
+  background-color: #f7f0e4;
+  font-size: 14px;
+  line-height: 22px;
+
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    max-width: 100%;
+  }
+
+  a {
+    width: 120px;
+    color: #000;
+    text-align: center;
+    text-decoration: underline;
+    text-underline-position: from-font;
+
+    + a {
+      width: 160px;
+    }
+  }
+}
+
+.home-page .application-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-hero {
+  flex: 1;
+  padding: 24px 20px 32px;
+  background-color: #fff8ec;
+  color: #293d36;
+  font-family: "Noto Sans JP", sans-serif;
+
+  h1 {
+    margin: 0 0 12px;
+    color: #2f6b58;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+
+  p {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+}
+
+.home-hero-content {
+  max-width: 1104px;
+  margin-inline: auto;
+}
+
+.home-hero-copy {
+  min-width: 0;
+}
+
+.home-hero-artwork {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  margin-top: 20px;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .home-page .shared-header--after-login + .application-content .home-hero {
+    padding-top: 32px;
+  }
 }
 
 .terms-page,
@@ -761,14 +1019,113 @@
   }
 
   .shared-header--before-login {
-    min-height: 111px;
+    padding-inline: 27px;
+  }
+
+  .shared-logo {
+    flex-basis: 220px;
+    width: 220px;
+    height: 33px;
+    font-size: 22px;
+    line-height: 26px;
+  }
+
+  .shared-header--home {
+    padding-inline: 24px;
+  }
+
+  .shared-login-links {
+    gap: 12px;
+  }
+
+  .shared-login-link {
+    width: 160px;
+    font-size: 15px;
+    line-height: 19px;
+  }
+
+  .home-hero {
+    padding: 125px 48px 167px;
 
     h1 {
-      font-size: 2.25rem;
+      margin-bottom: 20px;
+      font-size: 32px;
     }
   }
 
+  .home-hero-content {
+    display: grid;
+    grid-template-columns: minmax(0, 470fr) minmax(0, 632fr);
+    gap: 2px;
+    align-items: start;
+  }
+
+  .home-hero-copy {
+    padding-top: 29px;
+  }
+
+  .home-hero-artwork {
+    aspect-ratio: 632 / 356;
+    margin-top: 0;
+    border: 0;
+  }
+
   .shared-header--after-login {
-    min-height: 70px;
+    padding: 0 24px;
+
+    .shared-header-row {
+      flex-wrap: nowrap;
+      padding-top: 19px;
+
+      > .shared-logo {
+        margin-top: 0;
+      }
+    }
+
+    .shared-header-links {
+      flex-wrap: nowrap;
+      gap: 24px;
+      width: auto;
+      margin-top: 0;
+    }
+
+    .nav-link {
+      width: auto;
+      margin-top: 6px;
+    }
+
+    .shared-header-name {
+      max-width: 100%;
+      height: 23px;
+      margin-top: 4px;
+      margin-left: 0;
+      font-size: 12px;
+    }
+  }
+
+  .shared-header--kindergarten .shared-header-links > .nav-link {
+    width: auto;
+  }
+
+  .shared-header--center .shared-header-links {
+    gap: 0;
+    margin-right: -1px;
+
+    > .nav-link {
+      width: 78px;
+
+      + .nav-link {
+        margin-left: 57px;
+      }
+
+      &:nth-child(3) {
+        width: 88px;
+        margin-left: 50px;
+      }
+
+      &:last-child {
+        width: 70px;
+      }
+    }
   }
 }

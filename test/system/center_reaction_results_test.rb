@@ -203,24 +203,25 @@ class CenterReactionResultsTest < ActionDispatch::SystemTestCase
 
   def assert_frame_positions(unset: false)
     positions = if unset
-      { ".center-reaction-results-date" => [ 92, 222 ],
-        ".center-reaction-results-unset-notice" => [ 92, 259 ] }
+      { ".center-reaction-results-date" => [ 92, 151 ],
+        ".center-reaction-results-unset-notice" => [ 92, 188 ] }
     else
-      { ".center-reaction-results-date" => [ 40, 222 ],
-        ".center-reaction-results-dish" => [ 40, 259 ],
-        ".center-reaction-results-count--positive" => [ 40, 296 ],
-        ".center-reaction-results-count--neutral" => [ 490, 296 ],
-        ".center-reaction-results-count--negative" => [ 40, 386 ],
-        ".center-reaction-results-total" => [ 490, 386 ],
-        ".center-reaction-results-notes" => [ 40, 469 ] }
+      { ".center-reaction-results-date" => [ 40, 151 ],
+        ".center-reaction-results-dish" => [ 40, 188 ],
+        ".center-reaction-results-count--positive" => [ 40, 225 ],
+        ".center-reaction-results-count--neutral" => [ 490, 225 ],
+        ".center-reaction-results-count--negative" => [ 40, 315 ],
+        ".center-reaction-results-total" => [ 490, 315 ],
+        ".center-reaction-results-notes" => [ 40, 398 ] }
     end
     heading = find("main h2").evaluate_script("this.getBoundingClientRect().toJSON()")
-    assert_in_delta 167, heading.fetch("top"), 0.1
+    main_top = find("main").evaluate_script("this.getBoundingClientRect().top")
+    assert_in_delta 96, heading.fetch("top") - main_top, 0.1
     assert_in_delta(unset ? 479 : 480, (heading.fetch("left") + heading.fetch("right")) / 2, 0.1)
     positions.each do |selector, (x, y)|
       rect = find(selector).evaluate_script("this.getBoundingClientRect().toJSON()")
       assert_in_delta x, rect.fetch("left"), 0.1, "#{selector} differs from Figma horizontally"
-      assert_in_delta y, rect.fetch("top"), 0.1, "#{selector} differs from Figma vertically"
+      assert_in_delta y, rect.fetch("top") - main_top, 0.1, "#{selector} differs vertically within main"
     end
   end
 

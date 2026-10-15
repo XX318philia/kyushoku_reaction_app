@@ -14,7 +14,7 @@ class ApplicationLayoutTest < ActionView::TestCase
     view.define_singleton_method(:logged_in?) { false }
     render inline: "<% content_for :hide_footer, true %><main>本文</main>", layout: "layouts/application"
 
-    assert_select "header h1", text: "給食リアクション", count: 1
+    assert_select "header .shared-logo[aria-label=?]", "給食リアクション", count: 1
     assert_select "main", text: "本文"
     assert_select "footer", count: 0
   end

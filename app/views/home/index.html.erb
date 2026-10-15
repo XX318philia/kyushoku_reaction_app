@@ -1,5 +1,14 @@
-<main class="container py-4 text-center">
-  <p class="mb-4">ログイン先を選択してください</p>
-  <p><%= link_to "幼稚園様はこちら", kindergarten_login_path, class: "btn btn-primary" %></p>
-  <p><%= link_to "給食センター様はこちら", center_login_path, class: "btn btn-primary" %></p>
+<% content_for :body_class, "home-page" %>
+
+<main class="home-hero">
+  <div class="home-hero-content">
+    <div class="home-hero-copy">
+      <h1>給食を作る人と、食べる人をつなぐ。</h1>
+      <p>幼稚園の先生が見た園児たちの様子を、給食センターへ。集まったリアクションを集計し、当日の結果を双方で確認できます。</p>
+    </div>
+    <picture class="home-hero-artwork">
+      <source media="(min-width: 768px)" srcset="<%= asset_path "home-desktop.png" %>" width="1672" height="941">
+      <%= image_tag "home-smartphone.png", alt: "給食を食べる園児たちを見守る先生と、給食づくりに関わる人たち", width: 1086, height: 1448 %>
+    </picture>
+  </div>
 </main>
