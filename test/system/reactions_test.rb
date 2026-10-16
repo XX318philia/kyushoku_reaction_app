@@ -236,19 +236,63 @@ class ReactionsTest < ActionDispatch::SystemTestCase
     end
   end
 
-  test "selecting a class without loading it cannot register for that class" do
+  test "unselected decisions show classroom guidance once on mobile and desktop" do
     log_in
-    select @classrooms.first.name, from: "担当クラス"
-    fill_in "美味しそうに食べていた", with: "4"
 
-    assert_no_difference "Reaction.count" do
-      click_button "登録"
-      assert_selector "[role=alert]", text: "担当クラスを選択してください。"
+    [ 390, 1280 ].each do |width|
+      page.driver.browser.manage.window.resize_to(width, 844)
+      assert_no_selector "[role=alert]"
+
+      assert_no_difference "Reaction.count" do
+        click_button "決定"
+        assert_classroom_selection_guidance(width)
+      end
+
+      assert_select "担当クラス", selected: "担当クラス"
+      assert_no_selector ".reaction-entry-loaded-classroom"
+      assert_field "美味しそうに食べていた", with: "0"
+      assert_field "普通・どちらでもない", with: "0"
+      assert_field "苦手そうに食べていた", with: "0"
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue106-reactions-decision-#{width}.png"))
+
+      click_link "集計結果"
+      assert_current_path reactions_path
+      assert_no_selector "[role=alert]"
+      click_link "入力・編集"
+      assert_current_path new_reaction_path
+      assert_no_selector "[role=alert]"
     end
+  end
 
-    assert_select "担当クラス", selected: "担当クラス"
-    assert_no_selector ".reaction-entry-loaded-classroom"
-    assert_field "美味しそうに食べていた", with: "4"
+  test "selecting a class without a decision shows classroom guidance and retains counts on mobile and desktop" do
+    log_in
+
+    [ 390, 1280 ].each do |width|
+      page.driver.browser.manage.window.resize_to(width, 844)
+      select @classrooms.first.name, from: "担当クラス"
+      fill_in "美味しそうに食べていた", with: "4"
+      fill_in "普通・どちらでもない", with: "3"
+      fill_in "苦手そうに食べていた", with: "1"
+
+      assert_no_difference "Reaction.count" do
+        click_button "登録"
+        assert_classroom_selection_guidance(width)
+      end
+
+      assert_select "担当クラス", selected: "担当クラス"
+      assert_no_selector ".reaction-entry-loaded-classroom"
+      assert_field "美味しそうに食べていた", with: "4"
+      assert_field "普通・どちらでもない", with: "3"
+      assert_field "苦手そうに食べていた", with: "1"
+      page.save_screenshot(Rails.root.join("tmp/screenshots/issue106-reactions-registration-#{width}.png"))
+
+      click_link "集計結果"
+      assert_current_path reactions_path
+      assert_no_selector "[role=alert]"
+      click_link "入力・編集"
+      assert_current_path new_reaction_path
+      assert_no_selector "[role=alert]"
+    end
   end
 
   test "unset guidance wraps on mobile and desktop and refreshing after target setting restores the normal page" do
@@ -894,6 +938,26 @@ class ReactionsTest < ActionDispatch::SystemTestCase
       })()
     JS
     assert_empty overflows, "Reaction entry overflows at #{width}px"
+  end
+
+  def assert_classroom_selection_guidance(width)
+    assert_selector ".reaction-entry-content > h2 + .alert.alert-danger[role=alert]",
+      exact_text: "担当クラスを選択し、決定を押してください。", count: 1
+    assert_selector "[role=alert]", count: 1
+    assert_no_selector "[role=alert] li"
+    assert_no_horizontal_overflow(width)
+    assert page.evaluate_script(<<~JS), "Classroom guidance overlaps or clips text at #{width}px"
+      (() => {
+        const alert = document.querySelector('main [role=alert]');
+        const rect = alert.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(alert);
+        return rect.top >= document.querySelector('main h2').getBoundingClientRect().bottom &&
+          rect.bottom <= document.querySelector('.reaction-entry-date').getBoundingClientRect().top &&
+          [...range.getClientRects()].every(text => text.left >= rect.left && text.right <= rect.right &&
+            text.top >= rect.top && text.bottom <= rect.bottom);
+      })()
+    JS
   end
 
   def assert_registration_layout(width)

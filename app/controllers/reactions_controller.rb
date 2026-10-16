@@ -9,6 +9,9 @@ class ReactionsController < ApplicationController
 
   def new
     @selected_classroom = @classrooms.find { |classroom| classroom.id.to_s == params[:classroom_id] }
+    if params.key?(:classroom_id) && !@selected_classroom
+      flash.now[:alert] = "担当クラスを選択し、決定を押してください。"
+    end
     @reaction = if @selected_classroom && @feedback_target
       @selected_classroom.reactions.find_by(feedback_target: @feedback_target)
     end
@@ -36,7 +39,7 @@ class ReactionsController < ApplicationController
     end
 
     unless @selected_classroom
-      @reaction.errors.add(:base, "担当クラスを選択してください。")
+      flash.now[:alert] = "担当クラスを選択し、決定を押してください。"
       return render :new, status: :unprocessable_content
     end
 

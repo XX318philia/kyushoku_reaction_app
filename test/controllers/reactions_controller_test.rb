@@ -59,6 +59,8 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".reaction-entry-constraint", text: "入力制約：0以上の整数"
     assert_select ".reaction-entry-unset-notice", count: 0
     assert_select ".reaction-entry-loaded-classroom", count: 0
+    assert_nil flash[:alert]
+    assert_select "[role=alert]", count: 0
   end
 
   test "displays Japanese labels for all four dish categories" do
@@ -119,8 +121,11 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       end
       if id == @classrooms.last.id
         assert_select ".reaction-entry-loaded-classroom", text: "（登録対象クラス：#{@classrooms.last.name}）", count: 1
+        assert_nil flash[:alert]
+        assert_select "[role=alert]", count: 0
       else
         assert_select ".reaction-entry-loaded-classroom", count: 0
+        assert_classroom_selection_alert
       end
     end
   end
@@ -132,18 +137,40 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       positive_count: 9, neutral_count: 8, negative_count: 7)
     Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
       positive_count: 2, neutral_count: 1, negative_count: 0)
+    original_attributes = Reaction.order(:id).map(&:attributes)
 
     [ other_classroom.id, Classroom.maximum(:id) + 1, "invalid", "#{@classrooms.first.id}invalid", "1.5",
       [ @classrooms.first.id ], { id: @classrooms.first.id } ].each do |id|
-      get new_reaction_url, params: { classroom_id: id }
+      assert_no_difference "Reaction.count" do
+        get new_reaction_url, params: { classroom_id: id }
+      end
 
       assert_response :success
+      assert_classroom_selection_alert
       assert_reaction_counts([ 0, 0, 0 ])
       assert_select "select#classroom_id option[selected]", count: 0
       assert_select ".reaction-entry-loaded-classroom", count: 0
       assert_select "input#loaded_classroom_id", count: 1 do |fields|
         assert_empty fields.first["value"].to_s
       end
+    end
+
+    assert_equal original_attributes, Reaction.order(:id).map(&:attributes)
+  end
+
+  test "classroom decision guidance does not carry to initial entry a valid decision or results" do
+    [ new_reaction_url, new_reaction_url(classroom_id: @classrooms.last.id), reactions_url ].each do |url|
+      assert_no_difference "Reaction.count" do
+        get new_reaction_url, params: { classroom_id: "" }
+        assert_response :success
+        assert_classroom_selection_alert
+
+        get url
+      end
+
+      assert_response :success
+      assert_nil flash[:alert]
+      assert_select "[role=alert]", count: 0
     end
   end
 
@@ -378,20 +405,36 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
   test "rejects missing nonexistent malformed and other kindergarten classroom ids" do
     other_kindergarten = Kindergarten.create!(name: "ひまわり幼稚園")
     other_classroom = other_kindergarten.classrooms.create!(name: "他園のクラス")
+    Reaction.create!(classroom: other_classroom, feedback_target: @feedback_target,
+      positive_count: 9, neutral_count: 8, negative_count: 7)
+    Reaction.create!(classroom: @classrooms.first, feedback_target: @feedback_target,
+      positive_count: 2, neutral_count: 1, negative_count: 0)
+    original_attributes = Reaction.order(:id).map(&:attributes)
 
-    [ nil, "", "invalid", "#{@classrooms.first.id}invalid", "1.5", Classroom.maximum(:id) + 1, other_classroom.id ].each do |id|
+    [ nil, "", "invalid", "#{@classrooms.first.id}invalid", "1.5", Classroom.maximum(:id) + 1, other_classroom.id,
+      [ @classrooms.first.id ], { id: @classrooms.first.id } ].each do |id|
       assert_no_difference "Reaction.count" do
         post reactions_url, params: registration_params.merge(classroom_id: id, reaction: {
           classroom_id: @classrooms.first.id, positive_count: "12", neutral_count: "3", negative_count: "1" })
       end
 
       assert_response :unprocessable_content
-      assert_select "[role=alert] li", text: "担当クラスを選択してください。"
+      assert_classroom_selection_alert
       assert_select ".reaction-entry-loaded-classroom", count: 0
       assert_select "select#classroom_id option[selected]", count: 0
       assert_select "select#classroom_id option[value=?]", other_classroom.id, count: 0
-      assert_select "#reaction_positive_count[value='12']"
+      assert_reaction_counts([ 12, 3, 1 ])
+      assert_select "input#loaded_classroom_id", count: 1 do |fields|
+        assert_empty fields.first["value"].to_s
+      end
+
+      get reactions_url
+      assert_response :success
+      assert_nil flash[:alert]
+      assert_select "[role=alert]", count: 0
     end
+
+    assert_equal original_attributes, Reaction.order(:id).map(&:attributes)
   end
 
   test "never saves when today's target is unset even when another target is supplied" do
@@ -1102,6 +1145,14 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     %i[ positive_count neutral_count negative_count ].zip(counts).each do |attribute, count|
       assert_select "input#reaction_#{attribute}[value=?]", count.to_s, count: 1
     end
+  end
+
+  def assert_classroom_selection_alert
+    assert_equal "担当クラスを選択し、決定を押してください。", flash[:alert]
+    assert_select ".reaction-entry-content > h2 + .alert.alert-danger[role=alert]",
+      text: "担当クラスを選択し、決定を押してください。", count: 1
+    assert_select "[role=alert]", count: 1
+    assert_select "[role=alert] li", count: 0
   end
 
   def registration_params
