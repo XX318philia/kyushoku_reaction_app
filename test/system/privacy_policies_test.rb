@@ -97,51 +97,14 @@ class PrivacyPoliciesTest < ActionDispatch::SystemTestCase
     end
   end
 
-  test "the text area grows to contain long content without clipping or overlapping navigation" do
+  test "the full manuscript scrolls with the document and the final text and navigation remain reachable" do
     visit privacy_policy_path
     assert_noto_sans_jp_loaded
 
-    [ 320, 390, 960 ].each do |width|
+    [ 320, 360, 390, 960, 1200 ].each do |width|
       resize_viewport(width)
-      original_height = find(".privacy-policy-body").evaluate_script("this.getBoundingClientRect().height")
-      page.execute_script(<<~JS)
-        document.querySelector('.privacy-policy-body p:last-child').textContent =
-          'これは表示確認用の長いダミーテキストです。'.repeat(200);
-      JS
-
       assert_fits_viewport(width)
-      assert_operator find(".privacy-policy-body").evaluate_script("this.getBoundingClientRect().height"), :>, original_height
-      assert page.evaluate_script(<<~JS), "Long text overlaps navigation at #{width}px"
-        (() => {
-          const body = document.querySelector('.privacy-policy-body').getBoundingClientRect();
-          const text = document.querySelector('.privacy-policy-body p:last-child').getBoundingClientRect();
-          const navigation = document.querySelector('.privacy-policy-navigation').getBoundingClientRect();
-          return text.bottom <= body.bottom - 18 && navigation.top >= body.bottom + 24;
-        })()
-      JS
-      page.execute_script(<<~JS)
-        document.querySelector('.privacy-policy-body p:last-child').textContent = 'プライバシーポリシーの本文は別タスクで作成します。';
-      JS
-    end
-  end
-
-  test "the text area stretches and shrinks with viewport height" do
-    visit privacy_policy_path
-    assert_noto_sans_jp_loaded
-    browser = page.driver.browser
-
-    [ 390, 960 ].each do |width|
-      resize_viewport(width)
-      original_height = find(".privacy-policy-body").evaluate_script("this.getBoundingClientRect().height")
-      original_window = browser.manage.window.size
-      browser.manage.window.resize_to(original_window.width, original_window.height + 120)
-      grown_height = find(".privacy-policy-body").evaluate_script("this.getBoundingClientRect().height")
-      assert_in_delta original_height + 120, grown_height, 1
-      assert_fits_viewport(width)
-
-      browser.manage.window.resize_to(original_window.width, original_window.height)
-      assert_in_delta original_height, find(".privacy-policy-body").evaluate_script("this.getBoundingClientRect().height"), 1
-      assert_fits_viewport(width)
+      assert_document_scroll(width)
     end
   end
 
@@ -158,8 +121,15 @@ class PrivacyPoliciesTest < ActionDispatch::SystemTestCase
 
   def assert_public_layout
     assert_selector "main h1", exact_text: "プライバシーポリシー"
-    assert_selector ".privacy-policy-body p", exact_text: "本文領域（ダミーテキスト）"
-    assert_selector ".privacy-policy-body p", exact_text: "プライバシーポリシーの本文は別タスクで作成します。"
+    assert_selector ".privacy-policy-body > section", count: 9
+    assert_selector ".privacy-policy-body > section > h2", count: 9
+    assert_selector ".privacy-policy-body > section:last-of-type h2", exact_text: "第9条（プライバシーポリシーの変更）"
+    assert_selector ".privacy-policy-body time[datetime='2026-10-16']", exact_text: "2026年10月16日", count: 2
+    assert_no_text "ダミーテキスト"
+    assert_no_text "別タスクで作成"
+    assert_no_text "概要："
+    assert_no_text "【公開前要確認】"
+    assert_no_text "【正式公開時に確定】"
     assert_no_selector "header, footer"
     assert_no_text "表示状態："
     assert_no_text "ナビゲーションはログイン状態"
@@ -171,19 +141,20 @@ class PrivacyPoliciesTest < ActionDispatch::SystemTestCase
   end
 
   def resize_viewport(width)
-    height = width == 960 ? 720 : 844
+    height = width >= 861 ? 720 : 844
     browser = page.driver.browser
     browser.manage.window.resize_to(width, height)
     chrome_height = height - page.evaluate_script("window.innerHeight")
     browser.manage.window.resize_to(width, height + chrome_height)
     assert_equal width, page.evaluate_script("window.innerWidth")
     assert_equal height, page.evaluate_script("window.innerHeight")
+    page.execute_script("window.scrollTo({ top: 0, behavior: 'instant' })")
   end
 
   def assert_responsive_design(role)
     assert_noto_sans_jp_loaded
 
-    [ 320, 390, 767, 768, 860, 861, 960 ].each do |width|
+    [ 320, 360, 390, 767, 768, 860, 861, 960, 1200 ].each do |width|
       resize_viewport(width)
       assert_fits_viewport(width)
       assert page.evaluate_script(<<~JS), "Privacy policy layout differs from the approved design for #{role} at #{width}px"
@@ -200,20 +171,31 @@ class PrivacyPoliciesTest < ActionDispatch::SystemTestCase
             return s['border' + side + 'Width'] === '1px' && s['border' + side + 'Style'] === 'solid' &&
               s['border' + side + 'Color'] === 'rgb(31, 31, 31)';
           });
-          const center = rect => Math.abs((rect.left + rect.right) / 2 - window.innerWidth / 2) < 1;
-          const expectedWidth = '#{role}' === 'kindergarten' ? Math.min((#{width} - 50 - 14) / 2, 261) : 261;
+          const viewportWidth = document.documentElement.clientWidth;
+          const center = rect => Math.abs((rect.left + rect.right) / 2 - viewportWidth / 2) < 1;
+          const expectedWidth = '#{role}' === 'kindergarten' ? Math.min((viewportWidth - 50 - 14) / 2, 261) :
+            '#{role}' === 'center' && #{width} >= 861 ? Math.min((viewportWidth - 50 - 28) / 3, 261) :
+            Math.min(viewportWidth - 50, 261);
           const vertical = '#{role}' === 'center' && #{width} < 861;
           return style.backgroundColor === 'rgb(255, 255, 255)' && style.color === 'rgb(31, 31, 31)' &&
             style.fontFamily.includes('Noto Sans JP') && style.fontWeight === '400' && borderMatches(main) &&
             getComputedStyle(heading).fontSize === '24px' && getComputedStyle(heading).fontWeight === '400' &&
             heading.getBoundingClientRect().left === 25 && heading.getBoundingClientRect().top === 77 &&
             body.getBoundingClientRect().left === 25 && body.getBoundingClientRect().top === 130 &&
-            body.getBoundingClientRect().width === #{width} - 50 && borderMatches(body) &&
+            body.getBoundingClientRect().width === viewportWidth - 50 && borderMatches(body) &&
             Math.abs(navigation.getBoundingClientRect().top - body.getBoundingClientRect().bottom - 24) < 1 &&
             Math.abs(main.getBoundingClientRect().bottom - navigation.getBoundingClientRect().bottom - 44) < 1 &&
             getComputedStyle(body).padding === '18px' && getComputedStyle(body).rowGap === '23.2px' &&
-            [...body.querySelectorAll('p')].every(p => getComputedStyle(p).fontSize === '13px' &&
-              getComputedStyle(p).fontWeight === '400' && getComputedStyle(p).color === 'rgb(31, 31, 31)') &&
+            [...body.querySelectorAll('p, li, h3, code, time')].every(p => getComputedStyle(p).fontSize === '14px' &&
+              getComputedStyle(p).fontWeight === '400' && getComputedStyle(p).color === 'rgb(31, 31, 31)' &&
+              Math.abs(parseFloat(getComputedStyle(p).lineHeight) - 22.4) < 0.05) &&
+            [...body.querySelectorAll('h2')].every(h => getComputedStyle(h).fontSize === '16px' &&
+              getComputedStyle(h).fontWeight === '400') &&
+            [...body.querySelectorAll('section > * + *, :scope > div > * + *, li > ul, li > ol')].every(p =>
+              getComputedStyle(p).marginTop === '8px') &&
+            [...body.querySelectorAll('ul, ol')].every(list => getComputedStyle(list).paddingLeft === '24px' &&
+              getComputedStyle(list).marginBottom === '0px') &&
+            [...body.querySelectorAll('li + li')].every(li => getComputedStyle(li).marginTop === '4px') &&
             buttons.every((button, index) => {
               const s = getComputedStyle(button);
               return Math.abs(rects[index].width - expectedWidth) < 1 && rects[index].height === 65 &&
@@ -227,26 +209,60 @@ class PrivacyPoliciesTest < ActionDispatch::SystemTestCase
             ('#{role}' !== 'logged_out' || center(rects[0]));
         })()
       JS
-      page.save_screenshot(Rails.root.join("tmp/screenshots/issue23-privacy-policy-#{role}-#{width}.png")) if [ 390, 960 ].include?(width)
+      assert_document_scroll(width)
+      if [ 390, 960 ].include?(width)
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue102-privacy-policy-#{role}-#{width}-bottom.png"))
+        page.execute_script("window.scrollTo({ top: 0, behavior: 'instant' })")
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue102-privacy-policy-#{role}-#{width}-top.png"))
+      end
     end
+  end
+
+  def assert_document_scroll(width)
+    assert page.evaluate_script(<<~JS), "The manuscript must use document scrolling at #{width}px"
+      (() => {
+        const body = document.querySelector('.privacy-policy-body');
+        const ancestors = [];
+        for (let element = body; element && element !== document.body; element = element.parentElement) {
+          ancestors.push(element);
+        }
+        return document.scrollingElement.scrollHeight > window.innerHeight &&
+          ancestors.every(element => !['auto', 'scroll', 'hidden', 'clip'].includes(getComputedStyle(element).overflowY)) &&
+          body.scrollHeight <= body.clientHeight + 1;
+      })()
+    JS
+    page.execute_script("window.scrollTo({ top: document.scrollingElement.scrollHeight, behavior: 'instant' })")
+    assert page.evaluate_script(<<~JS), "The final text or navigation is unreachable at #{width}px"
+      (() => {
+        const body = document.querySelector('.privacy-policy-body').getBoundingClientRect();
+        const last = document.querySelector('.privacy-policy-body > div:last-child > p:last-child').getBoundingClientRect();
+        const navigation = document.querySelector('.privacy-policy-navigation').getBoundingClientRect();
+        return window.scrollY > 0 && last.top >= 0 && last.bottom <= body.bottom - 18 &&
+          navigation.top >= body.bottom + 24 - 1 && navigation.bottom <= window.innerHeight &&
+          [...document.querySelectorAll('.privacy-policy-navigation a')].every(button => {
+            const rect = button.getBoundingClientRect();
+            return rect.top >= 0 && rect.bottom <= window.innerHeight;
+          });
+      })()
+    JS
   end
 
   def assert_fits_viewport(width)
     overflows = page.evaluate_script(<<~JS)
       (() => {
         const failures = [];
-        if (document.documentElement.scrollWidth > window.innerWidth) failures.push('document');
-        [...document.querySelectorAll('main, main h1, .privacy-policy-body, .privacy-policy-body p, .privacy-policy-navigation, .privacy-policy-navigation a')].forEach(element => {
+        if (document.documentElement.scrollWidth > document.documentElement.clientWidth) failures.push('document');
+        [...document.querySelectorAll('main, main h1, .privacy-policy-body, .privacy-policy-body section, .privacy-policy-body h2, .privacy-policy-body h3, .privacy-policy-body p, .privacy-policy-body ul, .privacy-policy-body ol, .privacy-policy-body li, .privacy-policy-navigation, .privacy-policy-navigation a')].forEach(element => {
           const rect = element.getBoundingClientRect();
-          if (rect.left < 0 || rect.right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 1) {
+          if (rect.left < 0 || rect.right > document.documentElement.clientWidth + 1) {
             failures.push({ element: element.tagName + '.' + element.className, left: rect.left, right: rect.right,
               scrollWidth: element.scrollWidth, clientWidth: element.clientWidth });
           }
-          if (!['A', 'P', 'H1'].includes(element.tagName)) return;
-          const container = element.tagName === 'P' ? element.parentElement.getBoundingClientRect() : rect;
+          if (!['A', 'P', 'H1', 'H2', 'H3', 'LI'].includes(element.tagName)) return;
+          const container = element.closest('.privacy-policy-body')?.getBoundingClientRect() || rect;
           const range = document.createRange();
           range.selectNodeContents(element);
-          // 本文の行ボックスからはみ出す字形も、余白を含む本文枠内で表示されれば切れていない。
+          // 禁則処理による句読点・括弧のぶら下がりも、余白を含む本文枠内なら切れていない。
           if ([...range.getClientRects()].some(text => text.left < container.left || text.right > container.right ||
               (element.tagName !== 'H1' && (text.top < container.top || text.bottom > container.bottom)))) {
             failures.push({ element: element.tagName + '.' + element.className, text: 'outside container' });

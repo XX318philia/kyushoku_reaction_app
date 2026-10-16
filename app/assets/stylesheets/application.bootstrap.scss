@@ -340,11 +340,43 @@ body {
   gap: 23.2px;
   padding: 18px;
   border: 1px solid #1f1f1f;
-  font-size: 13px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 1.6;
 
-  p {
+  h2,
+  h3,
+  p,
+  ul,
+  ol {
     margin: 0;
+  }
+
+  h2 {
+    font-size: 16px;
+    font-weight: normal;
+    line-height: inherit;
+  }
+
+  h3,
+  code {
+    color: inherit;
+    font: inherit;
+  }
+
+  section > * + *,
+  > div > * + *,
+  li > ul,
+  li > ol {
+    margin-top: 8px;
+  }
+
+  ul,
+  ol {
+    padding-left: 24px;
+  }
+
+  li + li {
+    margin-top: 4px;
   }
 }
 
