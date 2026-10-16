@@ -144,6 +144,53 @@ class DishTest < ActiveSupport::TestCase
     end
   end
 
+  test "accepts a single hiragana katakana or kanji character" do
+    [ "あ", "カ", "菜" ].each do |name|
+      dish = Dish.new(name: name, category: :main_dish)
+
+      assert dish.save, "Expected #{name.inspect} to be accepted"
+      assert_equal name, dish.reload.name
+    end
+  end
+
+  test "accepts long vowel marks and middle dots at the end of names" do
+    [ "野菜ー", "野菜・" ].each do |name|
+      dish = Dish.new(name: name, category: :main_dish)
+
+      assert dish.save, "Expected #{name.inspect} to be accepted"
+      assert_equal name, dish.reload.name
+    end
+  end
+
+  test "rejects names consisting only of long vowel marks and middle dots" do
+    [ "・", "ー", "・ー・" ].each do |name|
+      @dish.name = name
+
+      assert_not @dish.save, "Expected #{name.inspect} to be rejected"
+      assert @dish.errors.of_kind?(:name, :invalid)
+    end
+  end
+
+  test "rejects names starting with a long vowel mark or middle dot" do
+    [ "・カレー", "ーカレー" ].each do |name|
+      @dish.name = name
+
+      assert_not @dish.save, "Expected #{name.inspect} to be rejected"
+      assert @dish.errors.of_kind?(:name, :invalid)
+    end
+  end
+
+  test "rejects leading symbols after removing half-width and full-width spaces" do
+    { " ・ " => "・", "　ー　" => "ー", " 　・ ー　・　 " => "・ー・",
+      " 　・ カ　レー " => "・カレー", "　 ー カ　レー　 " => "ーカレー" }.each do |name, normalized_name|
+      @dish.name = name
+
+      assert_not @dish.save, "Expected #{name.inspect} to be rejected after removing spaces"
+      assert_equal normalized_name, @dish.name
+      assert @dish.errors.of_kind?(:name, :invalid)
+    end
+  end
+
   test "rejects hiragana katakana and kanji iteration marks" do
     [ "ゝ", "ゞ", "ヽ", "ヾ", "々", "〻" ].each do |mark|
       @dish.name = "野菜#{mark}スープ"

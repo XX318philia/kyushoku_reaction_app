@@ -155,6 +155,25 @@ class DishesControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=?] option[value=main_dish][selected]", "dish[category]", count: 1
   end
 
+  test "rejects symbol-only names and leading symbols and retains both inputs" do
+    [ "・", "ー", "・ー・", "・カレー", "ーカレー" ].each do |name|
+      assert_registration_failure(name: name, category: "main_dish")
+
+      assert_select "input[name=?][value=?]", "dish[name]", name
+      assert_select "select[name=?] option[value=main_dish][selected]", "dish[category]", count: 1
+    end
+  end
+
+  test "rejects leading symbols after removing spaces and retains normalized inputs" do
+    { " ・ " => "・", "　ー　" => "ー", " 　・ ー　・　 " => "・ー・",
+      " 　・ カ　レー " => "・カレー", "　 ー カ　レー　 " => "ーカレー" }.each do |name, normalized_name|
+      assert_registration_failure(name: name, category: "main_dish")
+
+      assert_select "input[name=?][value=?]", "dish[name]", normalized_name
+      assert_select "select[name=?] option[value=main_dish][selected]", "dish[category]", count: 1
+    end
+  end
+
   test "renders the model errors for unknown categories" do
     assert_registration_failure(name: "野菜スープ", category: "unknown")
 
