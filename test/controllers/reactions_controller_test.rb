@@ -968,7 +968,7 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_select ".reaction-results-notes p", count: 2
     assert_select ".reaction-results-notes p:first-child", text: "※ 最新の集計を確認したい場合は、ページを再読み込みしてください。"
-    assert_select ".reaction-results-notes p:last-child", text: "※ 3種類の割合の表示値を合計しても100.0%にならない場合がありますが、これは計算方法の不整合ではありません。"
+    assert_select ".reaction-results-notes p:last-child", text: "※ 各割合は小数第1位まで四捨五入して表示しているため、合計が100.0%にならない場合があります。"
     assert_select ".reaction-results-constraint", count: 0
     assert_select "main", text: /過去日閲覧はMVP対象外|ページを再読みしないと更新されません/, count: 0
   end
