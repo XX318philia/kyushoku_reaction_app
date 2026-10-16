@@ -632,7 +632,7 @@ class ReactionsTest < ActionDispatch::SystemTestCase
         assert_result_row "苦手そうに食べていた", "3人 / 33.3%"
         assert_selector ".reaction-results-total .reaction-results-value", exact_text: "9人"
         assert_selector ".reaction-results-notes p", exact_text: "※ 最新の集計を確認したい場合は、ページを再読み込みしてください。"
-        assert_selector ".reaction-results-notes", text: "100.0%にならない場合があります"
+        assert_selector ".reaction-results-notes p:last-child", exact_text: "※ 各割合は小数第1位まで四捨五入して表示しているため、合計が100.0%にならない場合があります。"
         assert_no_selector ".reaction-results-constraint"
         assert_no_selector "main", text: "※ 当日分のみ表示（過去日閲覧はMVP対象外）"
         assert_no_selector "main", text: "味噌汁"
