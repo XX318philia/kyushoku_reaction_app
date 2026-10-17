@@ -60,10 +60,10 @@ class SharedLayoutSystemTest < ActionDispatch::SystemTestCase
     end
   end
 
-  test "both top page login links open a page with only the logo in its header" do
+  test "both login pages keep their logo design and return to the top page at every required width" do
     visit root_path
 
-    [ 320, 1200 ].each do |width|
+    widths.each do |width|
       resize_viewport(width)
       { "幼稚園の先生はこちら" => kindergarten_login_path,
         "給食センターの方はこちら" => center_login_path }.each do |label, path|
@@ -72,8 +72,56 @@ class SharedLayoutSystemTest < ActionDispatch::SystemTestCase
 
         assert_current_path path
         assert_selector "header .shared-logo", count: 1
-        assert_no_selector "header nav, header a"
+        assert_no_selector "header nav"
+        assert_selector "header a[href='#{root_path}'][aria-label='TOPページへ戻る']", count: 1
         assert_shared_design(width)
+        assert_login_logo_design(width)
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue115-#{path.split('/')[1]}-login-#{width}.png"))
+
+        find_link("TOPページへ戻る", enable_aria_label: true).hover
+        assert_login_logo_design(width)
+        click_link "TOPページへ戻る", enable_aria_label: true
+
+        assert_current_path root_path
+        assert_no_selector "header a .shared-logo"
+      end
+    end
+  end
+
+  test "both login pages return to the top page after a failed login" do
+    [ kindergarten_login_path, center_login_path ].each do |path|
+      visit path
+      fill_in "ログインID", with: "unknown"
+      fill_in "パスワード", with: "wrong-password"
+      click_button "ログイン"
+
+      assert_selector "[role=alert]", text: "ログインIDまたはパスワードが正しくありません"
+      click_link "TOPページへ戻る", enable_aria_label: true
+
+      assert_current_path root_path
+      assert_no_selector "[role=alert]"
+    end
+  end
+
+  test "both login logo links show keyboard focus and open the top page with Enter" do
+    [ 390, 960 ].each do |width|
+      [ kindergarten_login_path, center_login_path ].each do |path|
+        visit path
+        resize_viewport(width)
+        find("body").send_keys(:tab)
+
+        assert_selector "header a[aria-label='TOPページへ戻る']:focus-visible"
+        assert page.evaluate_script(<<~JS), "The logo link has no visible keyboard focus at #{width}px"
+          (() => {
+            const style = getComputedStyle(document.activeElement);
+            return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0 &&
+              style.outlineColor !== 'rgba(0, 0, 0, 0)';
+          })()
+        JS
+        page.save_screenshot(Rails.root.join("tmp/screenshots/issue115-#{path.split('/')[1]}-focus-#{width}.png"))
+        find_link("TOPページへ戻る", enable_aria_label: true).send_keys(:enter)
+
+        assert_current_path root_path
       end
     end
   end
@@ -126,6 +174,7 @@ class SharedLayoutSystemTest < ActionDispatch::SystemTestCase
     assert_current_path reactions_path
     click_link "ログアウト"
     assert_current_path kindergarten_login_path
+    assert_selector "header a[aria-label='TOPページへ戻る']"
     resize_viewport(390)
     log_in(@kindergarten_user, kindergarten_login_path)
     find("#kindergarten-menu").click
@@ -133,6 +182,8 @@ class SharedLayoutSystemTest < ActionDispatch::SystemTestCase
       click_link "ログアウト"
     end
     assert_current_path kindergarten_login_path
+    click_link "TOPページへ戻る", enable_aria_label: true
+    assert_current_path root_path
   end
 
   test "center navigation and logout keep working on all business pages and required widths" do
@@ -156,6 +207,8 @@ class SharedLayoutSystemTest < ActionDispatch::SystemTestCase
     end
     click_link "ログアウト"
     assert_current_path center_login_path
+    click_link "TOPページへ戻る", enable_aria_label: true
+    assert_current_path root_path
   end
 
   private
@@ -178,6 +231,27 @@ class SharedLayoutSystemTest < ActionDispatch::SystemTestCase
     browser.execute_cdp("Emulation.setDeviceMetricsOverride", width: width, height: height,
       deviceScaleFactor: 1, mobile: width < 768)
     assert_equal width, page.evaluate_script("window.innerWidth")
+  end
+
+  def assert_login_logo_design(width)
+    assert page.evaluate_script(<<~JS), "The login logo design differs at #{width}px"
+      (() => {
+        const desktop = window.innerWidth >= 768;
+        const header = document.querySelector('header').getBoundingClientRect();
+        const link = document.querySelector('header a');
+        const logo = link.querySelector('.shared-logo');
+        const rect = logo.getBoundingClientRect();
+        const linkRect = link.getBoundingClientRect();
+        const style = getComputedStyle(logo);
+        return header.height === 80 && rect.left === (desktop ? 27 : 19) &&
+          rect.top === (desktop ? 23 : 28.5) && rect.height === (desktop ? 33 : 22) &&
+          ['x', 'y', 'width', 'height'].every(key => rect[key] === linkRect[key]) &&
+          style.color === 'rgb(47, 107, 88)' && style.fontSize === (desktop ? '22px' : '14px') &&
+          style.fontWeight === '700' && style.gap === '3px' &&
+          [link, logo, ...logo.querySelectorAll('.shared-logo-word')].every(element =>
+            getComputedStyle(element).textDecorationLine === 'none');
+      })()
+    JS
   end
 
   def assert_shared_design(width)

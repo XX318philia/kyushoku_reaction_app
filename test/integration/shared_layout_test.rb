@@ -34,6 +34,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       end
       assert_select "header nav[aria-label=?]", "給食センター用ナビゲーション", count: 0
       assert_shared_logo
+      assert_unlinked_logo
       assert_select "header a.active", count: 0
       assert_shared_footer
     end
@@ -57,6 +58,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       end
       assert_select "header nav[aria-label=?]", "幼稚園用ナビゲーション", count: 0
       assert_shared_logo
+      assert_unlinked_logo
       assert_select "header a.active", count: 0
       assert_shared_footer
     end
@@ -122,7 +124,7 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
 
       assert_response :unprocessable_content
       assert_shared_logo
-      assert_select "header nav", count: 0
+      assert_logged_out_navigation(path)
       assert_select "[role=alert]", text: "ログインIDまたはパスワードが正しくありません"
       assert_shared_footer
     end
@@ -144,6 +146,8 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
       assert_response :see_other
       assert_redirected_to login_path
       follow_redirect!
+      assert_response :success
+      assert_login_logo_link
 
       shared_pages.each do |path|
         get path
@@ -226,11 +230,25 @@ class SharedLayoutTest < ActionDispatch::IntegrationTest
 
   def assert_logged_out_navigation(path)
     if path == root_path
+      assert_unlinked_logo
       assert_select "header nav[aria-label=?]", "ログイン先", count: 1
       assert_select "header a[href=?]", kindergarten_login_path, text: "幼稚園の先生はこちら", count: 1
       assert_select "header a[href=?]", center_login_path, text: "給食センターの方はこちら", count: 1
     else
-      assert_select "header nav, header a", count: 0
+      assert_select "header nav", count: 0
+      assert_login_logo_link
     end
+  end
+
+  def assert_login_logo_link
+    assert_select "header a", count: 1
+    assert_select "header a[href=?][aria-label=?]", root_path, "TOPページへ戻る", count: 1 do
+      assert_select ".shared-logo[role=img][aria-label=?]", "給食リアクション", count: 1
+    end
+  end
+
+  def assert_unlinked_logo
+    assert_select "header a .shared-logo", count: 0
+    assert_select "header a[aria-label=?]", "TOPページへ戻る", count: 0
   end
 end
