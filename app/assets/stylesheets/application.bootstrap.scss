@@ -25,6 +25,11 @@ body {
   padding: 16px 19px;
 }
 
+.shared-logo-link {
+  display: inline-flex;
+  text-decoration: none;
+}
+
 .shared-logo {
   display: flex;
   flex: 0 0 140px;
